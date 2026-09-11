@@ -1,0 +1,2348 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Mundo das Palavras 3D — Lousa Mágica</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --uva:#3E1259; --uva2:#7A3EA1; --uva3:#A96BD8;
+  --manga:#FFC244; --menta:#3FD9A6; --coral:#FF6B6B;
+  --creme:#FFF6E6; --tinta:#2B1237;
+  --display:'Baloo 2','Comic Sans MS',system-ui,sans-serif;
+  --corpo:'Nunito',system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#0D0616;font-family:var(--corpo);color:#fff;overscroll-behavior:none}
+button{font-family:var(--display);cursor:pointer;border:none;background:none;color:inherit;
+  touch-action:manipulation;-webkit-user-select:none;user-select:none}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%}
+input{-webkit-user-select:text;user-select:text}
+:focus-visible{outline:3px solid var(--manga);outline-offset:2px}
+canvas{display:block}
+[hidden]{display:none!important}
+
+#mundo{position:fixed;inset:0;touch-action:none}
+.assinatura{
+  position:fixed;left:14px;top:calc(11px + env(safe-area-inset-top));z-index:70;pointer-events:none;
+  font-family:var(--display);font-size:15px;color:#fff;letter-spacing:.5px;
+  text-shadow:0 2px 6px rgba(0,0,0,.55),0 0 2px rgba(0,0,0,.5);opacity:.95
+}
+@media (max-width:620px){.assinatura{font-size:12.5px;left:11px;top:calc(9px + env(safe-area-inset-top))}}
+
+/* ---------- HUD ---------- */
+#hud{position:fixed;inset:0;pointer-events:none;display:flex;flex-direction:column;
+  padding:calc(34px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom))}
+#hud > *{pointer-events:auto}
+
+.faixa-topo{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cracha{
+  display:flex;align-items:center;gap:8px;background:rgba(30,8,45,.72);backdrop-filter:blur(6px);
+  border-radius:16px;padding:7px 13px;box-shadow:0 4px 14px rgba(0,0,0,.4);margin-right:auto
+}
+.cracha b{font-family:var(--display);font-size:16px;line-height:1}
+.cracha small{display:block;font-size:10.5px;letter-spacing:1.4px;color:#FFD98A;text-transform:uppercase}
+.tecla{
+  width:42px;height:42px;border-radius:14px;background:rgba(30,8,45,.72);backdrop-filter:blur(6px);
+  font-size:18px;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.4)
+}
+.tecla:active{transform:translateY(2px)}
+.medidor{display:flex;align-items:center;gap:7px;background:rgba(30,8,45,.72);backdrop-filter:blur(6px);
+  border-radius:16px;padding:7px 12px;font-family:var(--display);font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.medidor .trilho{width:70px;height:9px;border-radius:99px;background:rgba(255,255,255,.22);overflow:hidden}
+.medidor .trilho i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--menta),#12A06F);transition:width .4s}
+
+.dica-central{
+  margin:auto auto 10px;background:rgba(30,8,45,.8);backdrop-filter:blur(6px);border-radius:999px;
+  padding:9px 20px;font-family:var(--display);font-size:15px;text-align:center;max-width:88%;
+  box-shadow:0 6px 18px rgba(0,0,0,.45);transition:opacity .35s;pointer-events:none!important
+}
+.mira{position:fixed;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;
+  background:rgba(255,255,255,.55);box-shadow:0 0 0 2px rgba(0,0,0,.25);pointer-events:none}
+
+#controles{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+#controles .fileira{display:flex;gap:6px}
+#controles .tecla{width:46px;height:44px;font-size:19px}
+#controles .tecla.larga{width:auto;padding:0 14px;font-family:var(--display);font-size:14px;gap:5px}
+#controles .tecla.ativo{background:var(--manga);color:var(--tinta)}
+
+.base-hud{display:flex;align-items:flex-end;gap:10px;margin-top:0}
+
+/* barra de figurinhas: fica sempre no rodapé, acima da alavanca */
+.tira{margin-top:8px;margin-bottom:0}
+.tira.min{width:auto;align-self:flex-start;padding:6px 10px}
+.tira.min .rolo,.tira.min .seta-t{display:none}
+.tira.min #tiraToggle{font-family:var(--display);font-size:13px;width:auto;padding:0 12px;gap:6px}
+#tiraToggle{width:36px;height:44px;flex:none;border-radius:12px;background:rgba(255,255,255,.22);
+  font-size:14px;display:flex;align-items:center;justify-content:center;color:#fff}
+
+/* alavanca */
+#alavanca{
+  width:130px;height:130px;border-radius:50%;flex:none;position:relative;
+  background:radial-gradient(circle,rgba(255,255,255,.26),rgba(255,255,255,.10));
+  border:3px solid rgba(255,255,255,.4);box-shadow:0 8px 20px rgba(0,0,0,.35);touch-action:none
+}
+#bolinha{
+  position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#fff,#D9C9E8);box-shadow:0 4px 12px rgba(0,0,0,.4);
+  transition:transform .08s
+}
+.coluna-dir{margin-left:auto;display:flex;flex-direction:column;align-items:center;gap:10px}
+#interagir{
+  width:96px;height:96px;border-radius:50%;font-size:34px;display:grid;place-items:center;line-height:1;
+  background:radial-gradient(circle at 35% 28%,#B879E8,#6A2A9E);box-shadow:0 8px 0 #3E1259,0 10px 22px rgba(0,0,0,.5);
+  transition:transform .12s,filter .2s;position:relative;filter:grayscale(.7) opacity(.55)
+}
+#interagir small{position:absolute;bottom:9px;font-family:var(--corpo);font-size:9.5px;font-weight:900;letter-spacing:.6px}
+#interagir.pronto{filter:none;animation:bater 1.3s ease-in-out infinite}
+#interagir:active{transform:translateY(6px);box-shadow:0 2px 0 #3E1259}
+@keyframes bater{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+
+.legenda{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(6px + env(safe-area-inset-bottom));
+  font-size:10.5px;font-weight:900;color:rgba(255,255,255,.55);letter-spacing:.4px;pointer-events:none;white-space:nowrap}
+@media (max-width:760px){.legenda{display:none}}
+
+/* tira de figurinhas */
+.tira{
+  display:flex;align-items:center;gap:7px;background:rgba(30,8,45,.78);backdrop-filter:blur(8px);
+  border-radius:20px;padding:8px;box-shadow:0 8px 20px rgba(0,0,0,.45);margin-bottom:8px;
+}
+.tira .rolo{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.tira .rolo::-webkit-scrollbar{display:none}
+.fig{
+  flex:none;width:66px;height:62px;border-radius:14px;background:#fff;color:var(--uva);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-family:var(--display);font-size:11px;box-shadow:0 3px 0 rgba(0,0,0,.35);line-height:1.05;text-align:center
+}
+.fig canvas{width:34px;height:30px;display:block}
+.fig .sil{font-family:var(--corpo);font-weight:900;font-size:7.5px;color:#B08CD1;letter-spacing:.3px}
+.fig:active{transform:translateY(3px);box-shadow:none}
+.seta-t{width:36px;height:44px;flex:none;border-radius:12px;background:rgba(255,255,255,.16);font-size:15px;display:grid;place-items:center}
+
+.btn{
+  font-family:var(--display);font-size:15px;padding:10px 16px;border-radius:16px;color:var(--tinta);
+  background:var(--creme);box-shadow:0 4px 0 rgba(0,0,0,.35);display:inline-flex;align-items:center;gap:7px;white-space:nowrap
+}
+.btn:active{transform:translateY(4px);box-shadow:none}
+.btn.verde{background:linear-gradient(180deg,#5BE5B0,#25B583);color:#06301F}
+.btn.manga{background:linear-gradient(180deg,#FFD87A,#FFB01F)}
+.btn.roxo{background:linear-gradient(180deg,#B879E8,#7A3EA1);color:#fff}
+.btn.pq{padding:8px 12px;font-size:13.5px}
+
+/* ---------- MODAIS ---------- */
+.tela{position:fixed;inset:0;background:rgba(18,6,30,.7);backdrop-filter:blur(4px);display:none;place-items:center;z-index:60;padding:12px}
+.tela.on{display:grid}
+.cartao{
+  width:min(780px,100%);max-height:94vh;overflow:auto;border-radius:26px;padding:16px;position:relative;
+  background:linear-gradient(180deg,#8B4CB8,#41165E);box-shadow:inset 0 3px 0 rgba(255,255,255,.28),0 20px 44px rgba(0,0,0,.55);
+  animation:sobe .28s cubic-bezier(.2,1.4,.5,1)
+}
+@keyframes sobe{from{transform:translateY(24px) scale(.94);opacity:0}}
+.cartao h3{font-family:var(--display);text-align:center;font-size:25px;margin-bottom:12px;text-shadow:0 3px 0 rgba(0,0,0,.3)}
+.fechar{position:absolute;top:12px;right:12px;width:42px;height:42px;border-radius:50%;background:#fff;color:var(--uva);font-size:18px;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+
+/* menu de mundos */
+.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.mundo{
+  border-radius:18px;overflow:hidden;background:rgba(255,255,255,.14);padding:0 0 8px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;font-family:var(--display);font-size:15px;
+  box-shadow:0 4px 0 rgba(0,0,0,.3);transition:transform .15s
+}
+.mundo canvas{width:100%;height:88px;display:block;background:#000}
+.mundo:active{transform:translateY(3px)}
+.mundo.on{outline:4px solid var(--manga);outline-offset:-4px}
+.rotulo{font-family:var(--display);font-size:14px;margin:14px 0 6px;opacity:.9;display:flex;align-items:center;gap:6px}
+.tons{display:flex;gap:8px;flex-wrap:wrap}
+.tom{width:62px;height:44px;border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.3);font-size:9.5px;font-weight:900;
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px;color:rgba(0,0,0,.55);text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.tom.on{outline:4px solid var(--manga);outline-offset:-3px}
+.linha-bt{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+
+.mundo.venceu{background:linear-gradient(180deg,rgba(63,217,166,.5),rgba(31,158,118,.5));outline:4px solid #3FD9A6;outline-offset:-4px}
+.mundo .fita{
+  position:absolute;top:6px;right:6px;background:var(--manga);color:var(--tinta);border-radius:99px;
+  font-family:var(--display);font-size:12px;padding:2px 9px;box-shadow:0 2px 0 rgba(0,0,0,.3)
+}
+.mundo{position:relative}
+.placar{display:flex;align-items:center;gap:6px;background:rgba(30,8,45,.72);backdrop-filter:blur(6px);
+  border-radius:16px;padding:7px 12px;font-family:var(--display);font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.ganhou{
+  position:fixed;left:50%;top:32%;transform:translate(-50%,-50%);z-index:85;pointer-events:none;
+  font-family:var(--display);font-size:38px;color:#FFD54A;text-shadow:0 4px 0 rgba(0,0,0,.35);
+  animation:subirPontos 1.2s ease-out forwards
+}
+@keyframes subirPontos{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}
+  25%{opacity:1;transform:translate(-50%,-55%) scale(1.15)}
+  100%{opacity:0;transform:translate(-50%,-95%) scale(1)}}
+.taca{font-size:clamp(70px,20vw,130px);text-align:center;line-height:1;animation:pulaTaca 1.6s ease-in-out infinite}
+@keyframes pulaTaca{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-12px) rotate(4deg)}}
+.estrelas{font-size:clamp(26px,7vw,44px);text-align:center;letter-spacing:6px;margin:4px 0}
+.painel-premio{background:rgba(255,255,255,.16);border-radius:18px;padding:12px;text-align:center;margin-top:8px}
+.painel-premio b{font-family:var(--display);font-size:22px;display:block}
+.painel-premio span{font-size:13px;font-weight:700;opacity:.92}
+.galeria{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}
+.salvo{
+  text-align:left;border-radius:16px;padding:11px 13px;background:rgba(255,255,255,.18);
+  box-shadow:0 4px 0 rgba(0,0,0,.3);color:#fff;transition:transform .15s
+}
+.salvo:active{transform:translateY(3px);box-shadow:none}
+.salvo b{display:block;font-family:var(--display);font-size:17px}
+.salvo span{display:block;font-size:11.5px;font-weight:800;opacity:.85;margin:2px 0 5px;font-family:var(--corpo)}
+.salvo em{font-style:normal;font-family:var(--display);font-size:12.5px;background:var(--manga);
+  color:var(--tinta);border-radius:99px;padding:2px 10px;display:inline-block}
+.modos{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-top:6px}
+.modo{
+  text-align:left;border-radius:20px;padding:14px 16px;background:rgba(255,255,255,.16);
+  box-shadow:0 5px 0 rgba(0,0,0,.32);transition:transform .15s;color:#fff
+}
+.modo:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.32)}
+.modo b{display:block;font-family:var(--display);font-size:20px;margin-bottom:4px}
+.modo span{font-size:12.5px;font-weight:700;opacity:.92;line-height:1.4;font-family:var(--corpo)}
+#btLeitura{background:linear-gradient(180deg,#5BE5B0,#1F9E76);color:#06301F}
+#btEscrita{background:linear-gradient(180deg,#FFD87A,#F0A21F);color:#3A2200}
+
+/* lousa */
+.chamada{display:flex;align-items:center;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;font-family:var(--display);font-size:16px}
+.balao{background:rgba(255,255,255,.16);border-radius:15px;padding:5px 12px;display:flex;align-items:center;gap:7px}
+.balao canvas{width:44px;height:40px}
+.segredo{letter-spacing:6px;font-size:21px;color:#FFD98A}
+.abas{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
+.aba{font-family:var(--display);font-size:15px;padding:9px 18px;border-radius:16px;
+  background:rgba(255,255,255,.16);color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.aba.on{background:var(--creme);color:var(--tinta);box-shadow:0 3px 0 rgba(0,0,0,.4)}
+/* a lousa ocupa a tela inteira, com o bichinho pequeno ao lado */
+#telaLousa{padding:0}
+#telaLousa .cartao{
+  width:100vw;max-width:none;height:100vh;max-height:none;border-radius:0;
+  display:flex;flex-direction:column;gap:6px;padding:8px 10px;overflow:hidden;animation:none;
+  padding-top:calc(8px + env(safe-area-inset-top));padding-bottom:calc(8px + env(safe-area-inset-bottom))
+}
+#telaLousa .cabeca-lousa{gap:8px;row-gap:6px}
+#telaLousa .linha-bt{margin-top:0;gap:8px}
+#telaLousa .btn{padding:9px 15px}
+#telaLousa .cartao h3{font-size:20px;margin:0}
+#telaLousa .chamada{margin:0;font-size:14px;gap:7px}
+#telaLousa .balao{padding:3px 9px;border-radius:12px}
+#telaLousa .balao canvas{width:40px;height:36px}
+#telaLousa .abas{margin:0}
+#telaLousa .aba{padding:7px 14px;font-size:14px}
+#painelMao{flex:1;display:flex;min-height:0;min-width:0}
+#telaLousa #painelTeclado{flex:1;justify-content:center}
+#telaLousa .linha-lousa{flex:1;min-height:0;align-items:stretch}
+#telaLousa .quadro{flex:1;min-height:0;height:100%}
+#telaLousa .cores{align-self:center}
+#telaLousa .lados{align-self:center}
+#telaLousa .linha-bt{margin-top:0}
+.cabeca-lousa{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.linha-lousa{display:flex;gap:10px;flex:1;min-height:0}
+.cores{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;align-content:start}
+.cores.deitada{display:flex;flex-wrap:wrap;justify-content:center;max-width:560px}
+.cor{width:38px;height:38px;border-radius:50%;box-shadow:0 3px 0 rgba(0,0,0,.35),inset 0 0 0 3px rgba(255,255,255,.5)}
+.cor.on{outline:4px solid #fff;outline-offset:2px}
+.quadro{flex:1;min-width:0;min-height:0;border-radius:16px;background:#fff;border:5px dashed rgba(255,255,255,.6);position:relative;overflow:hidden;touch-action:none}
+#giz{display:block;width:100%;height:100%;background:#fff;touch-action:none;cursor:crosshair;position:relative;z-index:2}
+.pauta{position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:repeating-linear-gradient(180deg,transparent 0 24%,rgba(120,80,160,.15) 24% 24.6%,transparent 24.6%)}
+.marca-dagua{position:absolute;inset:0;display:grid;place-items:center;z-index:3;pointer-events:none;
+  font-family:var(--display);font-size:clamp(17px,3vw,28px);color:#DCCBEC;transition:opacity .25s;text-align:center}
+.marca-dagua.some{opacity:0}
+.lados{display:flex;flex-direction:column;gap:8px;justify-content:center;align-items:center}
+.bola{width:44px;height:44px;border-radius:50%;background:#fff;color:var(--uva);font-size:19px;display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+.bola:active{transform:translateY(4px);box-shadow:none}
+.pontas{display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.18);padding:7px 6px;border-radius:15px}
+.ponta{width:32px;height:32px;border-radius:50%;display:grid;place-items:center}
+.ponta i{display:block;border-radius:50%}
+.ponta.on{background:#fff}
+
+#painelTeclado{display:flex;flex-direction:column;align-items:center;gap:12px}
+#entradaTexto{
+  width:100%;max-width:560px;border:none;border-radius:18px;padding:16px 18px;text-align:center;
+  font-family:var(--display);font-size:clamp(28px,6vw,52px);letter-spacing:3px;color:var(--tinta);
+  background:#fff;box-shadow:inset 0 0 0 5px rgba(255,255,255,.5),0 6px 0 rgba(0,0,0,.25);outline:none
+}
+#entradaTexto::placeholder{color:#D3C3E2;letter-spacing:1px;font-size:.55em}
+.opts-letra{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center}
+.previa-texto{
+  min-height:74px;display:grid;place-items:center;background:#fff;border-radius:16px;width:100%;
+  max-width:560px;padding:10px 16px;border:5px dashed rgba(255,255,255,.6);
+  font-family:var(--display);font-size:clamp(26px,5.5vw,46px);word-break:break-word;text-align:center
+}
+
+/* leitura */
+.palavra-grande{
+  font-family:var(--display);font-size:clamp(40px,10vw,84px);text-align:center;line-height:1.1;
+  background:#fff;color:var(--uva);border-radius:20px;padding:12px 18px;margin:6px 0 10px;
+  box-shadow:0 6px 0 rgba(0,0,0,.3);word-break:break-word
+}
+.silabas-grande{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
+.silabas-grande span{
+  font-family:var(--display);font-size:clamp(20px,4.5vw,32px);background:rgba(255,255,255,.9);
+  color:var(--uva);border-radius:14px;padding:4px 14px;box-shadow:0 3px 0 rgba(0,0,0,.28)
+}
+.silabas-grande span:nth-child(even){background:var(--manga)}
+
+/* guia */
+.passo{display:flex;gap:11px;align-items:center;background:rgba(255,255,255,.13);border-radius:16px;padding:9px 11px;margin-bottom:8px}
+.passo .n{width:40px;height:40px;flex:none;border-radius:50%;background:var(--manga);color:var(--tinta);display:grid;place-items:center;font-family:var(--display);font-size:19px}
+.passo b{display:block;font-family:var(--display);font-size:16px}
+.passo span{font-size:12.5px;font-weight:700;opacity:.9}
+.guia h4{font-family:var(--display);font-size:19px;margin:16px 0 8px;display:flex;align-items:center;gap:8px}
+.guia .nota{font-size:12.5px;font-weight:700;opacity:.9;line-height:1.5;margin-bottom:8px}
+.legendas{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px}
+.legendas div{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.13);border-radius:13px;padding:7px 10px;font-size:12.5px;font-weight:700}
+.legendas b{font-size:19px;flex:none;width:28px;text-align:center}
+
+.lista{list-style:none;display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow:auto}
+.lista li{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.14);border-radius:13px;padding:7px 10px;font-weight:800;font-size:14px}
+.lista li canvas{width:40px;height:34px;flex:none}
+.lista li .tag{margin-left:auto;font-size:9.5px;background:rgba(255,255,255,.22);padding:2px 7px;border-radius:99px;letter-spacing:.4px}
+.lista li.ok{background:rgba(63,217,166,.28)}
+
+#festa{position:fixed;inset:0;pointer-events:none;z-index:80;overflow:hidden}
+.conf{position:absolute;top:-40px;font-size:26px;animation:cair linear forwards}
+@keyframes cair{to{transform:translateY(110vh) rotate(720deg)}}
+
+#carregando{position:fixed;inset:0;display:grid;place-items:center;background:#1A0A28;z-index:90;text-align:center;font-family:var(--display);font-size:19px;gap:12px}
+#carregando .rodela{width:54px;height:54px;border-radius:50%;border:6px solid rgba(255,255,255,.2);border-top-color:var(--manga);animation:rodar 1s linear infinite;margin:0 auto 14px}
+@keyframes rodar{to{transform:rotate(360deg)}}
+
+/* celulares pequenos: tudo mais compacto, nada de barra ocupando a tela */
+@media (max-width:620px){
+  .faixa-topo{gap:5px}
+  .tecla{width:38px;height:38px;font-size:16px;border-radius:12px}
+  .cracha{padding:5px 9px;gap:6px}
+  .cracha b{font-size:13px}
+  .cracha small{font-size:8.5px;letter-spacing:.8px}
+  .medidor{padding:5px 8px;font-size:13px}
+  .medidor .trilho{width:42px}
+  .fig{width:58px;height:56px;font-size:10px}
+  .fig canvas{width:30px;height:26px}
+  .dica-central{font-size:13px;padding:7px 14px}
+  .cartao{padding:12px;border-radius:20px}
+  .cartao h3{font-size:20px}
+}
+@media (max-width:400px){
+  .medidor .trilho{display:none}
+  .tecla{width:34px;height:34px;font-size:15px}
+}
+/* telas baixas e deitadas (celular na horizontal) */
+@media (max-height:430px){
+  #alavanca{width:96px;height:96px}
+  #bolinha{width:42px;height:42px;margin:-21px 0 0 -21px}
+  #interagir{width:72px;height:72px;font-size:26px}
+  .fig{height:50px;width:54px}
+  .cartao{max-height:97vh}
+}
+@media (max-width:700px){
+  .linha-lousa{flex-direction:column;gap:7px}
+  .quadro{order:1;flex:1}
+  .cores{order:2;display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:2px;justify-content:flex-start}
+  .cores .cor{flex:none;width:34px;height:34px}
+  .lados{order:3;flex-direction:row;justify-content:center}
+  .pontas{flex-direction:row}
+  #telaLousa .cartao h3{font-size:17px}
+}
+@media (max-width:520px){
+  #alavanca{width:112px;height:112px}#bolinha{width:48px;height:48px;margin:-24px 0 0 -24px}
+  #interagir{width:82px;height:82px;font-size:29px}
+  .linha-lousa{flex-direction:column}.cores{grid-template-columns:repeat(5,1fr)}
+  .lados{flex-direction:row}.pontas{flex-direction:row}
+  .cracha b{font-size:14px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="mundo"></div>
+<div class="assinatura">@cataventoep</div>
+
+<div id="hud" hidden>
+  <div class="faixa-topo">
+    <div class="cracha"><span id="iconeMundo">🚜</span><div><b id="nomeMundo">Fazenda</b><small id="estadoModo">montando o mundo</small></div></div>
+    <div class="medidor" title="Palavras"><span>✏️</span><span id="contador">0/0</span><span class="trilho"><i id="trilhoFill"></i></span></div>
+    <div class="placar" id="placar" title="Seus pontos e troféus">🏆 <span id="numTrofeus">0</span> · ⭐ <span id="numPontos">0</span></div>
+    <button class="tecla" id="btLista" title="Ver as palavras">📋</button>
+    <button class="tecla" id="btCaixaMundo" title="Trocar entre MAIÚSCULA e minúscula" hidden>🔠</button>
+    <button class="tecla" id="btPalavraFrase" title="Mostrando: palavra" hidden>🔤</button>
+    <button class="tecla" id="btGuardar3d" title="Concluir e guardar este mundo">💾</button>
+    <button class="tecla" id="btAjudaHud" title="Como jogar">❓</button>
+    <button class="tecla" id="btFoto" title="Tirar foto do mundo">📸</button>
+    <button class="tecla" id="btSom" title="Som">🔊</button>
+    <button class="tecla" id="btCheia" title="Tela cheia">⛶</button>
+    <button class="tecla" id="btMenu" title="Trocar de mundo">🌍</button>
+  </div>
+
+  <div class="tira" id="tira" hidden>
+    <button id="tiraToggle" title="Esconder ou mostrar as figurinhas">▼</button>
+    <button class="seta-t" id="tiraEsq">◀</button>
+    <div class="rolo" id="rolo"></div>
+    <button class="seta-t" id="tiraDir">▶</button>
+  </div>
+
+  <div class="dica-central" id="dica">Ande com a alavanca e arraste a tela para olhar em volta 👀</div>
+
+
+  <div class="base-hud">
+    <div id="alavanca"><div id="bolinha"></div></div>
+    <div class="coluna-dir">
+      <div id="controles" hidden>
+        <div class="fileira"><button class="tecla" id="btGirarE" title="Girar para a esquerda">↺</button><button class="tecla" id="btGirarD" title="Girar para a direita">↻</button></div>
+        <div class="fileira"><button class="tecla" id="btMenor" title="Diminuir">➖</button><button class="tecla" id="btMaior" title="Aumentar">➕</button></div>
+        <div class="fileira"><button class="tecla larga" id="btMover" title="Pegar e levar">✋ Pegar</button><button class="tecla" id="btTirar" title="Tirar do mundo">🗑️</button></div>
+      </div>
+      <button class="btn verde" id="btPronto">✅ Pronto, montei!</button>
+      <button id="interagir">✋<small>Interagir</small></button>
+    </div>
+  </div>
+</div>
+<div class="mira" id="mira" hidden></div>
+<div class="legenda" id="legenda" hidden>WASD anda · arraste ou setas giram · espaço interage · 1-9 solta figurinha</div>
+
+<!-- MENU -->
+<div class="tela on" id="telaMenu">
+  <div class="cartao">
+    <h3>🌍 Escolha o seu mundo</h3>
+    <div class="grade" id="gradeMundos"></div>
+    <div class="rotulo">☁️ Cor do céu</div><div class="tons" id="tonsCeu"></div>
+    <div class="rotulo">🟫 Tipo de chão</div><div class="tons" id="tonsChao"></div>
+    <div class="rotulo" id="tituloGaleria" hidden>💾 Meus mundos guardados</div>
+    <div class="galeria" id="galeria"></div>
+    <div class="rotulo">🎮 Como você quer jogar?</div>
+    <div class="modos">
+      <button class="modo" id="btLeitura">
+        <b>📖 Modo Leitura</b>
+        <span>As palavras já aparecem prontas em cima de cada figura. A criança monta o mundo, passeia e lê sozinha. Sem áudio.</span>
+      </button>
+      <button class="modo" id="btEscrita">
+        <b>✏️ Modo Escrita</b>
+        <span>A criança escreve o nome de cada figura, à mão na lousa ou digitando. É o modo de sondagem da escrita.</span>
+      </button>
+    </div>
+    <div class="linha-bt">
+      <button class="btn pq" id="btAjudaMenu">❓ Como jogar — passo a passo</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOUSA -->
+<div class="tela" id="telaLousa">
+  <div class="cartao">
+    <div class="cabeca-lousa">
+    <h3 id="tituloLousa">Que nome tem isso? ✏️</h3>
+    <div class="chamada">
+      <span class="balao"><canvas id="retrato" width="88" height="80"></canvas></span>
+      <span class="balao"><button class="bola" id="btFalar" title="Ouvir">🔊</button>ouça</span>
+      <span class="balao"><button class="bola" id="btPalmas" title="Sílabas">👏</button><span id="silabas">sílabas</span></span>
+      <span class="balao segredo" id="segredo">?</span>
+      <button class="btn pq manga" id="btEspiar">👁️ Mostrar</button>
+    </div>
+    </div>
+    <div class="abas">
+      <button class="aba on" id="abaMao">✍️ Escrever à mão</button>
+      <button class="aba" id="abaTeclado">⌨️ Digitar</button>
+    </div>
+    <div id="painelMao">
+      <div class="linha-lousa">
+        <div class="cores" id="cores"></div>
+        <div class="quadro">
+          <canvas id="giz" width="900" height="400"></canvas>
+          <div class="pauta"></div>
+          <div class="marca-dagua" id="marcaDagua">escreva aqui com o dedo ou o mouse ✍️</div>
+        </div>
+        <div class="lados">
+          <div class="pontas" id="pontas"></div>
+          <button class="bola" id="btBorracha" title="Borracha">🧽</button>
+          <button class="bola" id="btDesfazer" title="Desfazer">↩️</button>
+          <button class="bola" id="btLimpa" title="Apagar tudo">🗑️</button>
+        </div>
+      </div>
+    </div>
+    <div id="painelTeclado" hidden>
+      <input id="entradaTexto" maxlength="26" autocomplete="off" autocorrect="off" autocapitalize="off"
+             spellcheck="false" placeholder="digite a palavra aqui">
+      <div class="opts-letra">
+        <button class="btn pq" id="btCaixa">🔤 MAIÚSCULA</button>
+        <button class="btn pq" id="btApagarTexto">🧽 Apagar</button>
+      </div>
+      <div class="cores deitada" id="cores2"></div>
+      <div class="previa-texto" id="previaTexto">…</div>
+    </div>
+    <div class="linha-bt">
+      <button class="btn" id="btVoltarExplorar">← Voltar a explorar</button>
+      <button class="btn verde" id="btGuardar">✔ Pronto!</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEITURA -->
+<div class="tela" id="telaLeitura">
+  <div class="cartao">
+    <button class="fechar" id="fecharLeitura">✕</button>
+    <h3>Vamos ler! 📖</h3>
+    <div class="chamada">
+      <span class="balao"><canvas id="retrato2" width="88" height="80"></canvas></span>
+      <span class="balao" id="qtdSilabas">sílabas</span>
+    </div>
+    <div class="palavra-grande" id="palavraGrande">…</div>
+    <div class="silabas-grande" id="silabasGrande"></div>
+    <div class="linha-bt">
+      <button class="btn pq" id="btPalavraFraseCartao">💬 ver a frase</button>
+      <button class="btn pq" id="btCaixaLeitura">🔡 ver em minúscula</button>
+      <button class="btn verde" id="fecharLeitura2">Voltar a explorar</button>
+    </div>
+  </div>
+</div>
+
+<!-- LISTA -->
+<div class="tela" id="telaLista">
+  <div class="cartao">
+    <button class="fechar" id="fecharLista">✕</button>
+    <h3>📋 Palavras deste mundo</h3>
+    <ul class="lista" id="listaPalavras"></ul>
+    <div class="linha-bt"><button class="btn" id="fecharLista2">Voltar a explorar</button></div>
+  </div>
+</div>
+
+<!-- AJUDA -->
+<div class="tela" id="telaAjuda">
+  <div class="cartao guia">
+    <button class="fechar" id="fecharAjuda">✕</button>
+    <h3>Como jogar — passo a passo 🎈</h3>
+
+    <p class="nota">O <b>Mundo das Palavras</b> é um mundo em 3D que a criança monta e explora andando dentro dele. Cada figura que ela coloca tem um nome, e é esse nome que ela vai ler ou escrever. São <b>6 mundos</b>, <b>61 figuras</b> e <b>4 opções de céu e 4 de chão</b> em cada mundo, escolhidas entre palavras monossílabas, dissílabas e polissílabas — dá para começar simples e ir aumentando o desafio.</p>
+
+    <h4>1️⃣ A tela inicial</h4>
+    <div class="passo"><span class="n">A</span><div><b>Escolha o mundo</b><span>Fazenda, Fundo do Mar, Parque, Confeitaria, Escola ou Espaço. Cada quadradinho mostra uma miniatura de como o lugar é por dentro.</span></div></div>
+    <div class="passo"><span class="n">B</span><div><b>Pinte o céu e o chão</b><span>Quatro opções de cada. Elas mudam completamente o clima do lugar: dia, tarde, noite, grama, areia, azulejo, solo da lua…</span></div></div>
+    <div class="passo"><span class="n">C</span><div><b>Escolha o modo</b><span>📖 Leitura ou ✏️ Escrita. Os dois usam os mesmos mundos e as mesmas figuras — o que muda é o que acontece com a palavra.</span></div></div>
+    <div class="passo"><span class="n">D</span><div><b>Volte a mundos guardados</b><span>Se você já guardou algum mundo nesta sessão, ele aparece no alto da tela inicial, em 💾 Meus mundos guardados. Um toque e você entra nele de novo, com tudo do jeitinho que ficou.</span></div></div>
+
+    <h4>2️⃣ Andar e olhar em volta</h4>
+    <div class="legendas">
+      <div><b>🕹️</b><span>Alavanca do canto esquerdo: anda para frente, para trás e para os lados</span></div>
+      <div><b>👆</b><span>Arraste o dedo (ou o mouse) na tela: vira a cabeça para qualquer lado</span></div>
+      <div><b>⌨️</b><span>No computador: W A S D anda, setas giram, espaço interage, teclas 1 a 9 soltam figurinhas</span></div>
+      <div><b>⛶</b><span>Tela cheia: melhor para tablet e lousa digital</span></div>
+    </div>
+
+    <h4>3️⃣ Montar o cenário</h4>
+    <div class="passo"><span class="n">A</span><div><b>Toque numa figura da barra do topo</b><span>Ela cai do céu na frente da criança, já num lugar com espaço de sobra — o jogo procura sozinho um ponto vago, para as figuras nunca ficarem empilhadas. Cabem até 18 no mesmo mundo.</span></div></div>
+    <div class="passo"><span class="n">B</span><div><b>Esconda a barra quando quiser</b><span>O botão ▼ na ponta esquerda recolhe a barra até virar uma abinha 🧸 Figurinhas ▲, liberando a tela inteira.</span></div></div>
+    <div class="passo"><span class="n">C</span><div><b>Chegue perto para ajustar</b><span>O botão roxo acende e aparece o painel de controles ao lado.</span></div></div>
+    <div class="legendas">
+      <div><b>↺↻</b><span>Giram a figura; segure o botão para girar contínuo</span></div>
+      <div><b>➕➖</b><span>Aumentam e diminuem; segure para crescer aos poucos</span></div>
+      <div><b>✋</b><span>Pega a figura; ela anda junto até você tocar em 📍 Soltar</span></div>
+      <div><b>🗑️</b><span>Tira a figura do mundo</span></div>
+    </div>
+
+    <h4>✏️ Modo Escrita — a sondagem</h4>
+    <p class="nota">A palavra fica escondida. A criança escreve do jeito dela: é isso que revela em que hipótese de escrita ela está.</p>
+    <div class="passo"><span class="n">1</span><div><b>Toque no selo ✍️ da figurinha</b><span>Assim que a figura é colocada, um selo ✍️ aparece flutuando em cima dela. Tocar nesse selo abre a lousa na hora — não precisa nem esperar o "Pronto, montei!". Tocar na figura ou no botão ✏️ Escrever também funciona.</span></div></div>
+    <div class="passo"><span class="n">2</span><div><b>Escreva na lousa gigante</b><span>A lousa ocupa a tela inteira. Na aba ✍️ Escrever à mão são 10 cores de giz, 4 grossuras, borracha e desfazer; na aba ⌨️ Digitar, um campo de letras grandes com opção MAIÚSCULA ou minúscula.</span></div></div>
+    <div class="passo"><span class="n">3</span><div><b>Use as ajudas só se precisar</b><span>🔊 fala a palavra em voz alta, 👏 bate as palminhas das sílabas e 👁️ revela a escrita correta. Guarde o 👁️ para depois da tentativa dela, senão a sondagem perde o valor.</span></div></div>
+    <div class="passo"><span class="n">4</span><div><b>Toque em ✔ Pronto!</b><span>A escrita da criança sobe e fica flutuando em cima da figura. Depois disso, ➕➖ mudam o tamanho da palavra e 🔁 permite escrever de novo.</span></div></div>
+
+    <h4>📖 Modo Leitura — palavra ou frase</h4>
+    <p class="nota">Aqui a palavra já aparece escrita, flutuando em cima de cada figura, assim que a criança a coloca. Quem lê é ela.</p>
+    <div class="passo"><span class="n">1</span><div><b>Alterne entre 🔤 Palavra e 💬 Frase</b><span>O botão 🔤 na barra de cima (e também dentro do cartão de leitura) troca o que aparece sobre as figuras: só a palavra — "FOGUETE" — ou uma frase curta pronta para ler: "O foguete voa alto." Todas as 61 figuras têm a frase delas.</span></div></div>
+    <div class="passo"><span class="n">2</span><div><b>Toque na figura para ver de perto</b><span>Abre um cartão com o texto bem grande, a figura girando em 360° e a leitura em voz alta. No modo palavra, ela aparece separada em sílabas coloridas; no modo frase, separada em palavrinhas.</span></div></div>
+    <div class="passo"><span class="n">3</span><div><b>Troque o tipo de letra com 🔠</b><span>Alterna tudo entre MAIÚSCULA (letra bastão) e minúscula, conforme a fase da turma.</span></div></div>
+
+    <h4>💾 Concluir um mundo e começar outro</h4>
+    <div class="passo"><span class="n">1</span><div><b>Toque em 💾 na barra de cima</b><span>O mundo inteiro é guardado: as figuras, onde cada uma está, o tamanho, o giro, o céu, o chão e todas as palavras que a criança escreveu.</span></div></div>
+    <div class="passo"><span class="n">2</span><div><b>Escolha o que fazer</b><span>↩️ Continuar neste mundo, para seguir brincando aqui, ou 🌍 Começar outro mundo, para ir ao fundo do mar, ao espaço, à confeitaria…</span></div></div>
+    <div class="passo"><span class="n">3</span><div><b>Volte quando quiser</b><span>Os mundos guardados aparecem no topo da tela inicial (botão 🌍). Um toque em 👁️ Visitar de novo e ele volta exatamente como estava. Guardar o mesmo mundo outra vez apenas atualiza o que já estava salvo.</span></div></div>
+    <p class="nota">⚠️ Os mundos guardados valem <b>enquanto o jogo estiver aberto</b>. Se fechar a aba, eles se perdem — por isso, antes de encerrar, vale tirar a 📸 foto de cada mundo, que essa fica salva de verdade no aparelho. Já os pontos e troféus continuam guardados de um dia para o outro.</p>
+
+    <h4>🏆 Prêmios e conquistas</h4>
+    <p class="nota">Cada palavra escrita vale pontos (quanto mais sílabas, mais pontos) e cada palavra lida também pontua. Ao completar todas as palavras de um mundo, chove confete, o céu fica dourado por alguns segundos, uma <b>taça de ouro aparece plantada no cenário</b> e abre a tela de vitória com as estrelinhas conquistadas — ⭐ até 5 figuras, ⭐⭐ a partir de 6 e ⭐⭐⭐ a partir de 10, o que incentiva montar mundos maiores. No menu, o mundo conquistado fica <b>verde com uma faixa 🏆</b>, e o placar do alto mostra troféus e pontos somados.</p>
+
+    <h4>📸 Guardar o resultado</h4>
+    <div class="legendas">
+      <div><b>📸</b><span>"Todos de frente": enfileira tudo virado para a câmera, nada fica escondido</span></div>
+      <div><b>🌍👁️</b><span>"Mundo inteiro" mostra o cenário de longe; "Minha visão", o ponto de vista da criança</span></div>
+      <div><b>📋</b><span>Lista com as figuras, a classificação silábica e o que já foi escrito</span></div>
+      <div><b>⬇️</b><span>Baixa a imagem em alta, já com a marca @cataventoep, para imprimir ou postar</span></div>
+    </div>
+
+    <h4>🍎 Dicas para quem está mediando</h4>
+    <p class="nota">Comece pelo Modo Escrita sem dar nenhuma ajuda: o que a criança escreve sozinha diante da figura é o registro mais fiel da sondagem. Depois volte no Modo Leitura, com as mesmas figuras, para ela comparar a escrita dela com a palavra convencional — e use o botão 💬 Frase para ampliar da palavra para a leitura de frases. Um bom roteiro de aula: montar um mundo, escrever, guardar com 💾, montar um segundo mundo com palavras mais difíceis e, no fim, revisitar os dois para a criança ver todo o percurso dela.</p>
+
+    <div class="linha-bt"><button class="btn verde" id="btFechaAjuda2">Vamos brincar!</button></div>
+  </div>
+</div>
+
+<!-- MUNDO GUARDADO -->
+<div class="tela" id="telaGuardado">
+  <div class="cartao">
+    <h3>💾 Mundo guardado!</h3>
+    <div class="painel-premio">
+      <b id="resumoGuardado">—</b>
+      <span>Ele fica guardado enquanto o jogo estiver aberto. Você pode voltar a visitá-lo pelo botão 🌍, na parte de cima da tela.</span>
+    </div>
+    <div class="linha-bt">
+      <button class="btn" id="btContinuarGuardado">↩️ Continuar neste mundo</button>
+      <button class="btn verde" id="btOutroMundoGuardado">🌍 Começar outro mundo</button>
+    </div>
+  </div>
+</div>
+
+<!-- VITÓRIA -->
+<div class="tela" id="telaVitoria">
+  <div class="cartao">
+    <h3 id="tituloVitoria">Mundo completo! 🏆</h3>
+    <div class="taca">🏆</div>
+    <div class="estrelas" id="estrelasVitoria">⭐⭐⭐</div>
+    <div class="painel-premio">
+      <b id="pontosGanhos">+100 pontos</b>
+      <span id="textoVitoria">Você escreveu todas as palavras deste mundo!</span>
+    </div>
+    <div class="painel-premio">
+      <b><span id="totalTrofeus">1</span> de 6 mundos conquistados</b>
+      <span id="listaTrofeus">🚜</span>
+    </div>
+    <div class="linha-bt">
+      <button class="btn manga" id="btFotoVitoria">📸 Tirar foto</button>
+      <button class="btn" id="btContinuarVitoria">Continuar aqui</button>
+      <button class="btn verde" id="btNovoMundoVitoria">🌍 Novo mundo</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOTO -->
+<div class="tela" id="telaFoto">
+  <div class="cartao">
+    <button class="fechar" id="fecharFoto">✕</button>
+    <h3>📸 Foto do seu mundo</h3>
+    <div style="background:#fff;border-radius:14px;padding:7px"><img id="fotoImg" style="width:100%;display:block;border-radius:9px" alt="Foto do mundo"></div>
+    <div class="linha-bt">
+      <button class="btn roxo" id="fotoFrente">👥 Todos de frente</button>
+      <button class="btn roxo" id="fotoTudo">🌍 Mundo inteiro</button>
+      <button class="btn roxo" id="fotoVista">👁️ Minha visão</button>
+    </div>
+    <div class="linha-bt"><button class="btn manga" id="btBaixarFoto">⬇️ Baixar</button><button class="btn" id="btCompartilhar">📨 Compartilhar</button></div>
+  </div>
+</div>
+
+<div id="festa"></div>
+<div id="carregando"><div><div class="rodela"></div>Construindo o mundo…</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+
+/* ==========================================================================
+   MUNDO DAS PALAVRAS 3D — alfabetização em um mundo voxel explorável
+   Ande, encoste nas figuras, toque em Interagir e escreva o nome delas.
+   ========================================================================== */
+const $=s=>document.querySelector(s);
+
+if(typeof THREE==='undefined'){
+  $('#carregando').innerHTML='<div style="padding:24px;max-width:420px;line-height:1.5">😕 Não deu para carregar a biblioteca 3D.<br><br>Conecte a internet uma vez para o arquivo baixar a engine e depois ele funciona normalmente.</div>';
+}
+
+/* ---------- 1. PEÇAS DOS MODELOS (caixinhas: x,y,z,larg,alt,prof,cor) ---------- */
+const esc=(b,e)=>e&&e!==1?b.map(x=>[x[0]*e,x[1]*e,x[2]*e,x[3]*e,x[4]*e,x[5]*e,x[6]]):b;
+const P={
+  quad(o){ // bichos de quatro patas, com focinho, olhos, cascos e rabo
+    const c=o.c,c2=o.c2||o.c,bar=o.barriga||c2,f=o.f||'#E8A0B4',cs=o.casco||'#39302B';
+    const b=[
+      [0,1.04,0,1.5,.8,.86,c],                                        // corpo
+      [0,.72,0,1.42,.3,.82,bar],                                      // barriga
+      [.66,1.06,0,.5,.78,.85,c],                                      // peito
+      [.84,1.3,0,.48,.5,.52,c],                                       // pescoço
+      [1.12,1.48,0,.62,.56,.58,c2],                                   // cabeça
+      [1.44,1.36,0,.3,.36,.46,f],                                     // focinho
+      [1.58,1.42,.12,.06,.07,.07,'#33262B'],[1.58,1.42,-.12,.06,.07,.07,'#33262B'],
+      [1.34,1.64,.2,.13,.13,.12,'#FFFFFF'],[1.34,1.64,-.2,.13,.13,.12,'#FFFFFF'],
+      [1.4,1.64,.21,.07,.09,.09,'#17131C'],[1.4,1.64,-.21,.07,.09,.09,'#17131C'],
+      [-.52,.5,.3,.26,.98,.26,c2],[-.52,.5,-.3,.26,.98,.26,c2],       // patas
+      [.52,.5,.3,.26,.98,.26,c2],[.52,.5,-.3,.26,.98,.26,c2],
+      [-.52,.07,.3,.29,.16,.29,cs],[-.52,.07,-.3,.29,.16,.29,cs],     // cascos
+      [.52,.07,.3,.29,.16,.29,cs],[.52,.07,-.3,.29,.16,.29,cs],
+      [-.84,1.26,0,.14,.62,.14,c],[-.86,.9,0,.2,.3,.2,o.tufo||c2]     // rabo
+    ];
+    if(o.chifre)b.push([1.0,1.78,.24,.15,.26,.15,'#EFE3C6'],[1.0,1.78,-.24,.15,.26,.15,'#EFE3C6'],
+                       [1.0,1.96,.3,.14,.16,.14,'#E0D2B0'],[1.0,1.96,-.3,.14,.16,.14,'#E0D2B0']);
+    if(o.orelha)b.push([1.0,1.76,.3,.16,.24,.24,c2],[1.0,1.76,-.3,.16,.24,.24,c2]);
+    if(o.orelhaCaida)b.push([1.06,1.5,.36,.16,.42,.2,c2],[1.06,1.5,-.36,.16,.42,.2,c2]);
+    if(o.crina)b.push([.72,1.72,0,.6,.28,.36,o.crina],[.98,1.8,0,.36,.24,.3,o.crina],[-.86,1.4,0,.16,.6,.22,o.crina]);
+    if(o.mancha)b.push([-.2,1.42,.44,.5,.34,.02,o.mancha],[.24,1.06,-.44,.42,.32,.02,o.mancha],[-.5,1.3,-.44,.3,.24,.02,o.mancha]);
+    if(o.la)b.push([-.05,1.5,0,1.35,.55,.82,o.la],[-.6,1.28,0,.55,.6,.78,o.la],[.5,1.5,0,.6,.45,.8,o.la],[1.1,1.76,0,.5,.28,.5,o.la]);
+    return esc(b,o.e);
+  },
+  ave(o){ // patos, galinhas e passarinhos
+    const c=o.c,c2=o.c2||'#F0A22C',asa=o.asa||c,cau=o.cauda||c;
+    const b=[
+      [0,.72,0,.82,.68,.62,c],
+      [.3,.64,0,.56,.56,.56,c],                                       // peito
+      [.36,1.12,0,.32,.44,.34,c],                                     // pescoço
+      [.5,1.4,0,.46,.42,.42,c],                                       // cabeça
+      [.8,1.36,0,.32,.16,.22,c2],                                     // bico
+      [.68,1.52,.14,.12,.12,.1,'#FFFFFF'],[.68,1.52,-.14,.12,.12,.1,'#FFFFFF'],
+      [.73,1.52,.15,.06,.07,.07,'#17131C'],[.73,1.52,-.15,.06,.07,.07,'#17131C'],
+      [-.44,.92,0,.42,.36,.36,cau],[-.66,1.04,0,.32,.28,.28,cau],     // cauda
+      [0,.76,.33,.46,.38,.08,asa],[0,.76,-.33,.46,.38,.08,asa],       // asas
+      [.16,.16,.17,.26,.32,.3,c2],[.16,.16,-.17,.26,.32,.3,c2]        // pés
+    ];
+    if(o.crista)b.push([.5,1.68,0,.28,.22,.1,'#E23B3B'],[.66,1.24,0,.13,.2,.13,'#E23B3B']);
+    return esc(b,o.e);
+  },
+  peixe(o){ // peixes, tubarões e baleias
+    const c=o.c,c2=o.c2||c,bar=o.barriga||'#F5F0E4';
+    const b=[
+      [0,0,0,1.25,.68,.48,c],
+      [0,-.26,0,1.05,.24,.44,bar],                                    // barriga clara
+      [.6,.02,0,.44,.52,.38,c],                                       // cabeça
+      [-.76,.04,0,.3,.5,.13,c2],
+      [-1,.24,0,.32,.42,.11,c2],[-1,-.18,0,.32,.42,.11,c2],           // cauda em V
+      [.06,.44,0,.42,.28,.11,c2],                                     // barbatana de cima
+      [.12,-.3,.22,.3,.1,.26,c2],[.12,-.3,-.22,.3,.1,.26,c2],         // peitorais
+      [.78,.14,.18,.14,.14,.1,'#FFFFFF'],[.78,.14,-.18,.14,.14,.1,'#FFFFFF'],
+      [.83,.14,.19,.07,.08,.08,'#17131C'],[.83,.14,-.19,.07,.08,.08,'#17131C'],
+      [.36,.04,.25,.06,.34,.02,c2],[.36,.04,-.25,.06,.34,.02,c2],     // guelras
+      [.82,-.1,0,.28,.08,.3,o.boca||c2]                               // boca
+    ];
+    if(o.listras)b.push([.1,.14,.25,.16,.34,.02,o.listras],[-.28,.14,.25,.16,.34,.02,o.listras],
+                        [.1,.14,-.25,.16,.34,.02,o.listras],[-.28,.14,-.25,.16,.34,.02,o.listras]);
+    if(o.jato)b.push([.3,.4,0,.14,.16,.14,'#3A5A78']);
+    return esc(b,o.e);
+  },
+  arvore(o){
+    const t=o.t||'#7B5230',f=o.f||'#3E8E3E',f2=o.f2||'#4FA553',f3=o.f3||'#347A3B';
+    const b=[[0,.95,0,.5,1.9,.5,t],[0,.2,0,.8,.4,.8,'#6A4529'],
+             [.4,.4,.1,.3,.3,.3,'#6A4529'],[-.4,.4,-.1,.3,.3,.3,'#6A4529']];
+    if(o.pinheiro)b.push([0,2.05,0,2.1,.7,2.1,f3],[0,2.6,0,1.6,.6,1.6,f],[0,3.1,0,1.1,.55,1.1,f2],[0,3.5,0,.6,.45,.6,f2]);
+    else b.push([0,2.25,0,2.3,1,2.3,f3],[0,2.95,0,1.9,.7,1.9,f],[0,3.45,0,1.1,.5,1.1,f2],
+                [.95,2.5,.6,.7,.6,.7,f2],[-.9,2.3,-.6,.6,.55,.6,f]);
+    return esc(b,o.e);
+  }
+};
+
+/* ---------- 2. CATÁLOGO DE FIGURAS ---------- */
+// p=palavra · d=palavra separada em sílabas · r=raio · b=caixas · a=animação
+const FIG={
+  boi:{p:'boi',d:'boi',r:1.15,b:P.quad({c:'#5C4535',c2:'#4A3628',barriga:'#7A6049',chifre:1,tufo:'#3A2A1E'})},
+  vaca:{p:'vaca',d:'va-ca',r:1.15,b:P.quad({c:'#F5F2EC',c2:'#E8E4DA',barriga:'#FFFFFF',mancha:'#2E2A28',chifre:1,f:'#F0A8B8',tufo:'#2E2A28'})},
+  porco:{p:'porco',d:'por-co',r:.95,b:P.quad({c:'#F0A5BC',c2:'#E38FA8',barriga:'#F8C4D4',orelhaCaida:1,f:'#DB7C97',casco:'#B9647C',e:.9})},
+  cavalo:{p:'cavalo',d:'ca-va-lo',r:1.25,b:P.quad({c:'#8A5A32',c2:'#75492A',barriga:'#A0703F',crina:'#37220F',orelha:1,e:1.12})},
+  ovelha:{p:'ovelha',d:'o-ve-lha',r:1.05,b:P.quad({c:'#33302F',c2:'#2A2726',la:'#F7F4EC',orelha:1,f:'#4A4442',e:.95})},
+  cachorro:{p:'cachorro',d:'ca-chor-ro',r:.85,b:P.quad({c:'#C9903F',c2:'#B27C31',barriga:'#E0B472',orelhaCaida:1,f:'#3A302A',e:.8})},
+  cao:{p:'cão',d:'cão',r:.8,b:P.quad({c:'#8E8E8E',c2:'#787878',barriga:'#B0B0B0',orelha:1,f:'#3A302A',e:.75})},
+  pato:{p:'pato',d:'pa-to',r:.7,b:P.ave({c:'#F5DE5A',c2:'#F08A2C',asa:'#EBD24C',cauda:'#E8CE48'}),a:'flutua'},
+  galinha:{p:'galinha',d:'ga-li-nha',r:.7,b:P.ave({c:'#FAF7F0',c2:'#F0A22C',asa:'#EDE7DA',cauda:'#E2DACB',crista:1})},
+  passaro:{p:'pássaro',d:'pás-sa-ro',r:.6,b:P.ave({c:'#4FA8E8',c2:'#F0A22C',asa:'#3E8ECC',cauda:'#2E7BB5',e:.8}),a:'voa'},
+
+  casa:{p:'casa',d:'ca-sa',r:2.5,b:[
+    [0,1.35,0,4.3,2.7,3.7,'#F2E7D2'],[0,.16,0,4.5,.32,3.9,'#C4B296'],
+    [0,2.9,0,4.8,.5,4.2,'#B4402F'],[0,3.35,0,3.7,.45,3.3,'#A5382A'],[0,3.72,0,2.4,.35,2.2,'#96311F'],
+    [1.5,3.9,-1,.55,1.1,.55,'#8A6A54'],[1.5,4.55,-1,.62,.24,.62,'#6E5342'],
+    [0,.95,1.87,1.05,1.85,.12,'#8A5A32'],[0,.95,1.93,.85,1.65,.04,'#9C6B3E'],[.36,.95,1.96,.12,.12,.08,'#FFD54A'],
+    [-1.35,1.8,1.87,1,1,.12,'#FFFFFF'],[-1.35,1.8,1.92,.78,.78,.04,'#8FD3F4'],[-1.35,1.8,1.95,.08,.8,.03,'#FFFFFF'],[-1.35,1.8,1.95,.8,.08,.03,'#FFFFFF'],
+    [1.35,1.8,1.87,1,1,.12,'#FFFFFF'],[1.35,1.8,1.92,.78,.78,.04,'#8FD3F4'],[1.35,1.8,1.95,.08,.8,.03,'#FFFFFF'],[1.35,1.8,1.95,.8,.08,.03,'#FFFFFF']]},
+  trator:{p:'trator',d:'tra-tor',r:1.7,b:[
+    [0,1,0,2.5,.9,1.5,'#2FA84F'],[.1,1.5,0,1.9,.3,1.55,'#28903F'],
+    [.75,1.85,0,1.15,.85,1.35,'#2FA84F'],[.75,1.9,0,1.2,.55,.95,'#BEE7FF'],[.75,2.35,0,1.25,.16,1.4,'#28903F'],
+    [-.4,1.7,0,.26,.6,.26,'#4A4A4A'],[-.4,2.05,0,.32,.14,.32,'#3A3A3A'],
+    [-.95,.65,.88,1,1,.4,'#2B2B2B'],[-.95,.65,-.88,1,1,.4,'#2B2B2B'],
+    [-.95,.65,.9,.42,.42,.44,'#E8C24A'],[-.95,.65,-.9,.42,.42,.44,'#E8C24A'],
+    [1.05,.42,.82,.62,.62,.32,'#2B2B2B'],[1.05,.42,-.82,.62,.62,.32,'#2B2B2B'],
+    [1.05,.42,.84,.26,.26,.36,'#E8C24A'],[1.05,.42,-.84,.26,.26,.36,'#E8C24A'],
+    [1.32,1.15,.45,.2,.2,.2,'#FFF3B0'],[1.32,1.15,-.45,.2,.2,.2,'#FFF3B0']]},
+  arvore:{p:'árvore',d:'ár-vo-re',r:1.3,b:P.arvore({})},
+  pinheiro:{p:'pinheiro',d:'pi-nhei-ro',r:1.2,b:P.arvore({pinheiro:1,f:'#2F7A45',f2:'#3B8C50',f3:'#276438'})},
+  flor:{p:'flor',d:'flor',r:.5,b:[
+    [0,.55,0,.14,1.1,.14,'#3E8E3E'],[.22,.7,0,.3,.12,.24,'#4CA24C'],[-.22,.9,0,.3,.12,.24,'#4CA24C'],
+    [0,1.2,0,.42,.42,.42,'#FFD54A'],
+    [.34,1.2,0,.28,.4,.4,'#FF6B9A'],[-.34,1.2,0,.28,.4,.4,'#FF6B9A'],
+    [0,1.2,.34,.4,.4,.28,'#FF6B9A'],[0,1.2,-.34,.4,.4,.28,'#FF6B9A'],
+    [.24,1.2,.24,.24,.34,.24,'#FF88AE'],[-.24,1.2,-.24,.24,.34,.24,'#FF88AE']]},
+  borboleta:{p:'borboleta',d:'bor-bo-le-ta',r:.5,b:[
+    [0,1.5,0,.18,.44,.18,'#3A2A44'],[.08,1.72,0,.1,.14,.1,'#3A2A44'],
+    [.14,1.84,.1,.04,.18,.04,'#3A2A44'],[.14,1.84,-.1,.04,.18,.04,'#3A2A44'],
+    [0,1.66,.34,.56,.58,.1,'#FF8FC7'],[0,1.66,-.34,.56,.58,.1,'#FF8FC7'],
+    [0,1.66,.36,.3,.3,.1,'#FFD1E6'],[0,1.66,-.36,.3,.3,.1,'#FFD1E6'],
+    [0,1.34,.26,.38,.36,.09,'#FFC244'],[0,1.34,-.26,.38,.36,.09,'#FFC244']],a:'voa'},
+
+  peixe:{p:'peixe',d:'pei-xe',r:.75,b:P.peixe({c:'#FF8A3D',c2:'#F5C13D',listras:'#FFF0D0'}),a:'nada'},
+  tubarao:{p:'tubarão',d:'tu-ba-rão',r:1.5,b:P.peixe({c:'#7E93A6',c2:'#5E7182',barriga:'#EDF1F4',boca:'#FFFFFF',e:2})},
+  baleia:{p:'baleia',d:'ba-lei-a',r:2,b:P.peixe({c:'#4A79A8',c2:'#3A6089',barriga:'#DCE8F2',jato:1,e:2.8}),a:'nada'},
+  polvo:{p:'polvo',d:'pol-vo',r:.95,b:[
+    [0,1.15,0,1.2,1.05,1.2,'#C0568F'],[0,1.72,0,.95,.28,.95,'#CB6499'],
+    [.36,1.3,.62,.15,.15,.06,'#FFFFFF'],[-.36,1.3,.62,.15,.15,.06,'#FFFFFF'],
+    [.36,1.3,.65,.08,.09,.06,'#17131C'],[-.36,1.3,.65,.08,.09,.06,'#17131C'],
+    [-.45,.3,.45,.26,.7,.26,'#A9457C'],[.45,.3,.45,.26,.7,.26,'#A9457C'],
+    [-.45,.3,-.45,.26,.7,.26,'#A9457C'],[.45,.3,-.45,.26,.7,.26,'#A9457C'],
+    [-.6,.08,.6,.24,.2,.3,'#A9457C'],[.6,.08,.6,.24,.2,.3,'#A9457C'],
+    [-.6,.08,-.6,.24,.2,.3,'#A9457C'],[.6,.08,-.6,.24,.2,.3,'#A9457C']],a:'flutua'},
+  lula:{p:'lula',d:'lu-la',r:.7,b:[
+    [0,1.35,0,.62,1.3,.62,'#E88AA8'],[0,2.1,0,.44,.42,.44,'#D97695'],
+    [.22,1.62,.32,.14,.14,.06,'#FFFFFF'],[-.22,1.62,.32,.14,.14,.06,'#FFFFFF'],
+    [.22,1.62,.35,.07,.08,.06,'#17131C'],[-.22,1.62,.35,.07,.08,.06,'#17131C'],
+    [-.2,.42,.16,.16,.95,.16,'#D97695'],[.2,.42,.16,.16,.95,.16,'#D97695'],
+    [0,.42,-.22,.16,.95,.16,'#D97695'],[-.3,.3,-.05,.14,.7,.14,'#E29AB2'],[.3,.3,-.05,.14,.7,.14,'#E29AB2']],a:'flutua'},
+  concha:{p:'concha',d:'con-cha',r:.55,b:[
+    [0,.26,0,1,.5,.75,'#F7D9C4'],[0,.6,-.1,.68,.36,.55,'#EFC3A8'],[0,.86,-.2,.36,.28,.34,'#E5AE90'],
+    [-.3,.32,.3,.24,.34,.16,'#FBE6D6'],[.3,.32,.3,.24,.34,.16,'#FBE6D6']]},
+  coral:{p:'coral',d:'co-ral',r:.75,b:[
+    [0,.45,0,.38,.9,.38,'#FF7A9C'],[.42,1,.1,.32,.8,.32,'#FF9FB8'],[-.42,.85,-.15,.3,.7,.3,'#FF5C86'],
+    [0,1.15,0,.3,.5,.3,'#FF9FB8'],[.42,1.5,.1,.26,.3,.26,'#FFC0D4'],[-.42,1.3,-.15,.24,.28,.24,'#FF88AE']]},
+  estrelaMar:{p:'estrela',d:'es-tre-la',r:.65,b:[
+    [0,.18,0,.55,.34,.55,'#FF9F3D'],[.52,.14,0,.55,.26,.42,'#FF9F3D'],[-.52,.14,0,.55,.26,.42,'#FF9F3D'],
+    [0,.14,.52,.42,.26,.55,'#FF9F3D'],[0,.14,-.52,.42,.26,.55,'#FF9F3D'],
+    [0,.35,0,.3,.08,.3,'#FFC07A'],[.5,.28,0,.2,.06,.2,'#FFC07A'],[-.5,.28,0,.2,.06,.2,'#FFC07A']],a:'gira'},
+  tartaruga:{p:'tartaruga',d:'tar-ta-ru-ga',r:.95,b:[
+    [0,.45,0,1.4,.55,1.05,'#3F8F5F'],[0,.78,0,1.1,.4,.85,'#2E6E48'],[0,1,0,.7,.25,.55,'#3F8F5F'],
+    [.35,.85,.25,.24,.3,.24,'#256039'],[-.3,.85,-.2,.24,.3,.24,'#256039'],
+    [.82,.4,0,.44,.42,.42,'#78A85E'],[-.68,.28,0,.34,.28,.28,'#78A85E'],
+    [.55,.16,.5,.34,.28,.34,'#78A85E'],[.55,.16,-.5,.34,.28,.34,'#78A85E'],
+    [-.45,.16,.5,.3,.26,.3,'#78A85E'],[-.45,.16,-.5,.3,.26,.3,'#78A85E'],
+    [1,.48,.13,.1,.1,.1,'#17131C'],[1,.48,-.13,.1,.1,.1,'#17131C']]},
+  caranguejo:{p:'caranguejo',d:'ca-ran-gue-jo',r:.85,b:[
+    [0,.45,0,1.15,.5,.85,'#E2503D'],[0,.66,0,.9,.2,.7,'#C43F2E'],
+    [.42,.82,.26,.14,.32,.14,'#E2503D'],[.42,.82,-.26,.14,.32,.14,'#E2503D'],
+    [.42,1,.26,.18,.18,.18,'#FFFFFF'],[.42,1,-.26,.18,.18,.18,'#FFFFFF'],
+    [.46,1,.27,.1,.1,.1,'#17131C'],[.46,1,-.27,.1,.1,.1,'#17131C'],
+    [.78,.34,.6,.5,.36,.32,'#C43F2E'],[.78,.34,-.6,.5,.36,.32,'#C43F2E'],
+    [.98,.5,.6,.3,.16,.2,'#E2503D'],[.98,.5,-.6,.3,.16,.2,'#E2503D'],
+    [-.5,.16,.45,.55,.16,.16,'#C43F2E'],[-.5,.16,-.45,.55,.16,.16,'#C43F2E'],
+    [-.15,.16,.55,.5,.14,.14,'#C43F2E'],[-.15,.16,-.55,.5,.14,.14,'#C43F2E']]},
+
+  bola:{p:'bola',d:'bo-la',r:.5,b:[
+    [0,.48,0,.85,.85,.85,'#F5F5F5'],[0,.48,.44,.3,.3,.02,'#2B2B2B'],[0,.48,-.44,.3,.3,.02,'#2B2B2B'],
+    [.44,.48,0,.02,.3,.3,'#2B2B2B'],[-.44,.48,0,.02,.3,.3,'#2B2B2B'],[0,.9,0,.3,.02,.3,'#2B2B2B']],a:'flutua'},
+  pipa:{p:'pipa',d:'pi-pa',r:.6,b:[
+    [0,2.5,0,1,1,.1,'#FF5C86'],[0,2.5,.03,.55,.55,.1,'#FFD54A'],[0,2.5,.05,.24,.24,.1,'#4FA8E8'],
+    [0,1.85,0,.08,.7,.05,'#F7F4EE'],[0,1.45,.12,.12,.22,.06,'#4FA8E8'],[0,1.1,-.1,.12,.22,.06,'#3FBF4B']],a:'voa'},
+  banco:{p:'banco',d:'ban-co',r:1.2,b:[
+    [0,.62,0,2.1,.14,.62,'#A2703F'],[0,.62,.22,2.1,.14,.18,'#B57D48'],
+    [0,1,-.26,2.1,.62,.14,'#A2703F'],[0,1.22,-.26,2.1,.16,.16,'#B57D48'],
+    [-.85,.3,0,.16,.62,.55,'#5E5E5E'],[.85,.3,0,.16,.62,.55,'#5E5E5E'],
+    [-.85,.05,0,.24,.1,.62,'#4A4A4A'],[.85,.05,0,.24,.1,.62,'#4A4A4A']]},
+  balao:{p:'balão',d:'ba-lão',r:.5,b:[
+    [0,2.5,0,.92,1.05,.92,'#E2503D'],[0,3.05,0,.6,.28,.6,'#C9432F'],[0,2.4,.47,.3,.4,.02,'#FF8A78'],
+    [0,1.9,0,.18,.22,.18,'#B33C2C'],[0,1.3,0,.05,1,.05,'#F7F4EE'],[0,.75,0,.05,.4,.05,'#F7F4EE']],a:'flutua'},
+  sorvete:{p:'sorvete',d:'sor-ve-te',r:.5,b:[
+    [0,.42,0,.42,.85,.42,'#E8B36A'],[0,.62,0,.44,.1,.44,'#D9A25A'],[0,.3,0,.44,.1,.44,'#D9A25A'],
+    [0,1.15,0,.7,.6,.7,'#FFC0D4'],[0,1.62,0,.56,.48,.56,'#A8E6CF'],[0,1.98,0,.36,.3,.36,'#FFF2B0'],
+    [0,2.2,0,.16,.2,.16,'#E2503D'],[.2,1.4,.3,.12,.12,.12,'#FFE9F2']]},
+  bicicleta:{p:'bicicleta',d:'bi-ci-cle-ta',r:1.05,b:[
+    [-.75,.62,0,.95,.95,.1,'#2B2B2B'],[-.75,.62,0,.7,.7,.12,'#8FD3F4'],[-.75,.62,0,.16,.16,.14,'#C0C0C0'],
+    [.75,.62,0,.95,.95,.1,'#2B2B2B'],[.75,.62,0,.7,.7,.12,'#8FD3F4'],[.75,.62,0,.16,.16,.14,'#C0C0C0'],
+    [0,.92,0,1.5,.12,.12,'#E2503D'],[-.35,.7,0,.12,.55,.12,'#E2503D'],[.45,.85,0,.12,.6,.12,'#E2503D'],
+    [-.42,1.15,0,.5,.14,.34,'#3A2A44'],[.6,1.35,0,.14,.14,.62,'#3A2A44'],[.6,1.28,0,.16,.28,.16,'#E2503D'],
+    [0,.62,0,.26,.26,.16,'#C0C0C0'],[0,.62,.18,.3,.1,.1,'#8A8A8A']]},
+
+  bolo:{p:'bolo',d:'bo-lo',r:.85,b:[
+    [0,.42,0,1.45,.84,1.45,'#F5D6A8'],[0,.75,0,1.5,.2,1.5,'#E8C08A'],
+    [0,.95,0,1.55,.24,1.55,'#FF9FC4'],[.6,.86,.6,.22,.16,.22,'#FF9FC4'],[-.6,.86,-.6,.22,.16,.22,'#FF9FC4'],
+    [0,1.25,0,.95,.42,.95,'#FFF8EC'],[0,1.5,0,1,.1,1,'#FFD1E6'],
+    [0,1.75,0,.12,.42,.12,'#FFFFFF'],[0,2.02,0,.14,.18,.14,'#FFB01F'],
+    [.32,1.6,.32,.16,.16,.16,'#E2503D'],[-.32,1.6,-.32,.16,.16,.16,'#E2503D']]},
+  pao:{p:'pão',d:'pão',r:.55,b:[
+    [0,.3,0,1.05,.52,.62,'#D9A05B'],[0,.58,0,.85,.24,.5,'#C98B45'],[0,.72,0,.55,.14,.34,'#B87837'],
+    [.42,.5,0,.24,.3,.42,'#CE9450'],[-.42,.5,0,.24,.3,.42,'#CE9450'],[0,.76,0,.3,.06,.14,'#EBC48C']]},
+  doce:{p:'doce',d:'do-ce',r:.45,b:[
+    [0,.4,0,.65,.55,.55,'#FF6B9A'],[0,.4,.29,.4,.34,.04,'#FFD1E6'],
+    [.46,.4,0,.3,.3,.3,'#FFC244'],[-.46,.4,0,.3,.3,.3,'#FFC244'],
+    [.66,.4,0,.18,.18,.18,'#FFDA80'],[-.66,.4,0,.18,.18,.18,'#FFDA80']],a:'gira'},
+  suco:{p:'suco',d:'su-co',r:.45,b:[
+    [0,.52,0,.58,1.05,.58,'#FF9F3D'],[0,.28,0,.6,.3,.6,'#F58A24'],
+    [0,1.08,0,.64,.14,.64,'#F7F4EE'],[.12,1.4,0,.09,.65,.09,'#E2503D'],
+    [0,.7,.3,.3,.34,.03,'#FFC48A']]},
+  leite:{p:'leite',d:'lei-te',r:.45,b:[
+    [0,.55,0,.62,1.1,.62,'#F7F4EE'],[0,1.15,0,.64,.2,.64,'#4FA8E8'],[0,1.32,0,.24,.18,.24,'#3E8ECC'],
+    [0,.6,.32,.36,.42,.03,'#4FA8E8'],[0,.25,0,.66,.16,.66,'#E4E0D6']]},
+  morango:{p:'morango',d:'mo-ran-go',r:.45,b:[
+    [0,.42,0,.66,.74,.66,'#E2503D'],[0,.18,0,.36,.3,.36,'#C43F2E'],
+    [0,.84,0,.44,.16,.44,'#3E8E3E'],[.22,.92,.2,.2,.12,.2,'#4CA24C'],[-.22,.92,-.2,.2,.12,.2,'#4CA24C'],
+    [0,1,0,.1,.2,.1,'#3E8E3E'],[.2,.48,.34,.07,.07,.04,'#FFE0A0'],[-.18,.6,.34,.07,.07,.04,'#FFE0A0']]},
+  biscoito:{p:'biscoito',d:'bis-coi-to',r:.5,b:[
+    [0,.22,0,.95,.28,.95,'#C98B45'],[0,.38,0,.78,.08,.78,'#D89A55'],
+    [.22,.4,.22,.15,.08,.15,'#5A3A22'],[-.22,.4,.1,.15,.08,.15,'#5A3A22'],
+    [.05,.4,-.26,.15,.08,.15,'#5A3A22'],[-.3,.4,-.28,.13,.08,.13,'#5A3A22'],[.3,.4,-.05,.13,.08,.13,'#5A3A22']]},
+  pirulito:{p:'pirulito',d:'pi-ru-li-to',r:.45,b:[
+    [0,.48,0,.1,.95,.1,'#F7F4EE'],[0,.28,0,.12,.16,.12,'#FF6B9A'],[0,.62,0,.12,.16,.12,'#FF6B9A'],
+    [0,1.22,0,.66,.66,.16,'#FF6B9A'],[0,1.22,.04,.42,.42,.16,'#FFF8EC'],[0,1.22,.06,.2,.2,.16,'#FF6B9A']],a:'gira'},
+  mel:{p:'mel',d:'mel',r:.45,b:[
+    [0,.42,0,.72,.82,.72,'#F0A22C'],[0,.16,0,.62,.3,.62,'#E09220'],
+    [0,.88,0,.52,.16,.52,'#8A5A32'],[0,1,0,.28,.12,.28,'#7A4E2A'],
+    [0,.48,.37,.4,.34,.03,'#FFF8EC'],[0,.48,.39,.16,.18,.03,'#F0A22C']]},
+
+  livro:{p:'livro',d:'li-vro',r:.55,b:[
+    [0,.18,0,1.1,.14,.88,'#4FA8E8'],[0,.3,0,1.02,.12,.82,'#F7F4EE'],[0,.4,0,1.02,.1,.82,'#EFEBE0'],
+    [0,.52,0,1.1,.14,.88,'#E2503D'],[-.5,.35,0,.12,.5,.88,'#2E7BB5'],
+    [.2,.6,0,.5,.03,.4,'#D9D3C4'],[0,.62,.3,.4,.03,.12,'#FFD54A']]},
+  lapis:{p:'lápis',d:'lá-pis',r:.35,b:[
+    [0,.65,0,.18,1.3,.18,'#FFC244'],[.1,.65,.1,.06,1.3,.06,'#F0AE28'],
+    [0,1.4,0,.18,.26,.18,'#E8B36A'],[0,1.58,0,.09,.12,.09,'#2B2B2B'],
+    [0,.1,0,.2,.16,.2,'#FF6B9A'],[0,.22,0,.21,.1,.21,'#C0C0C0']]},
+  regua:{p:'régua',d:'ré-gua',r:.55,b:[
+    [0,.08,0,1.9,.12,.38,'#A8E6CF'],[0,.14,.1,1.9,.03,.16,'#8FD8BC'],
+    [-.7,.16,-.06,.04,.06,.22,'#2B2B2B'],[-.35,.16,-.06,.04,.06,.16,'#2B2B2B'],
+    [0,.16,-.06,.04,.06,.22,'#2B2B2B'],[.35,.16,-.06,.04,.06,.16,'#2B2B2B'],[.7,.16,-.06,.04,.06,.22,'#2B2B2B']]},
+  globo:{p:'globo',d:'glo-bo',r:.55,b:[
+    [0,1.1,0,1.05,1.05,1.05,'#4FA8E8'],
+    [.22,1.28,.55,.42,.36,.03,'#3E8E3E'],[-.3,1,.55,.32,.3,.03,'#3E8E3E'],[.55,1.05,-.15,.03,.42,.42,'#3E8E3E'],
+    [0,1.65,0,.12,.16,.12,'#C0C0C0'],[.58,1.1,0,.1,1.1,.1,'#C0C0C0'],
+    [0,.42,0,.16,.6,.16,'#8A5A32'],[0,.12,0,.72,.24,.72,'#8A5A32']],a:'gira'},
+  maca:{p:'maçã',d:'ma-çã',r:.4,b:[
+    [0,.44,0,.76,.72,.76,'#E2503D'],[0,.72,0,.5,.2,.5,'#C9432F'],
+    [.3,.5,.3,.16,.3,.16,'#FF7A66'],[0,.88,0,.1,.26,.1,'#7B5230'],
+    [.22,.96,.05,.34,.1,.24,'#3E8E3E'],[0,.14,0,.5,.14,.5,'#C9432F']]},
+  mochila:{p:'mochila',d:'mo-chi-la',r:.6,b:[
+    [0,.68,0,1.05,1.25,.65,'#7A3EA1'],[0,.45,.36,.75,.55,.14,'#5E2C80'],[0,.45,.44,.3,.16,.04,'#FFD54A'],
+    [0,1.45,0,.95,.32,.6,'#5E2C80'],[0,1.68,0,.3,.2,.24,'#4A2266'],
+    [-.32,.95,-.38,.18,1,.18,'#5E2C80'],[.32,.95,-.38,.18,1,.18,'#5E2C80'],
+    [0,1.05,.34,.6,.3,.06,'#9B5DC4']]},
+  caderno:{p:'caderno',d:'ca-der-no',r:.5,b:[
+    [0,.16,0,1.05,.12,.85,'#F7F4EE'],[0,.26,0,1.08,.1,.88,'#FFC244'],
+    [-.52,.22,0,.1,.24,.85,'#E2503D'],
+    [-.52,.3,.3,.06,.1,.06,'#C0C0C0'],[-.52,.3,0,.06,.1,.06,'#C0C0C0'],[-.52,.3,-.3,.06,.1,.06,'#C0C0C0'],
+    [.1,.33,0,.6,.02,.5,'#C9C3B4']]},
+  onibus:{p:'ônibus',d:'ô-ni-bus',r:2.1,b:[
+    [0,1.35,0,4.5,1.7,1.85,'#FFC244'],[0,2.28,0,4.3,.5,1.75,'#F5B01F'],[0,.55,0,4.55,.35,1.9,'#E8A310'],
+    [-1.3,1.7,.94,1.05,.75,.05,'#BEE7FF'],[.25,1.7,.94,1.05,.75,.05,'#BEE7FF'],[1.55,1.7,.94,.8,.75,.05,'#BEE7FF'],
+    [-1.3,1.7,-.94,1.05,.75,.05,'#BEE7FF'],[.25,1.7,-.94,1.05,.75,.05,'#BEE7FF'],[1.55,1.7,-.94,.8,.75,.05,'#BEE7FF'],
+    [2.28,1.6,0,.06,.8,1.45,'#BEE7FF'],[-2.28,1.6,0,.06,.8,1.45,'#BEE7FF'],
+    [2.2,.85,.6,.2,.3,.3,'#FFF3B0'],[2.2,.85,-.6,.2,.3,.3,'#FFF3B0'],[-2.2,.85,.6,.2,.3,.3,'#E2503D'],[-2.2,.85,-.6,.2,.3,.3,'#E2503D'],
+    [-1.45,.42,.98,.85,.85,.32,'#2B2B2B'],[-1.45,.42,-.98,.85,.85,.32,'#2B2B2B'],
+    [1.45,.42,.98,.85,.85,.32,'#2B2B2B'],[1.45,.42,-.98,.85,.85,.32,'#2B2B2B'],
+    [-1.45,.42,1,.34,.34,.34,'#C0C0C0'],[-1.45,.42,-1,.34,.34,.34,'#C0C0C0'],
+    [1.45,.42,1,.34,.34,.34,'#C0C0C0'],[1.45,.42,-1,.34,.34,.34,'#C0C0C0']]},
+  giz:{p:'giz',d:'giz',r:.32,b:[
+    [0,.28,0,.18,.56,.18,'#F7F4EE'],[0,.58,0,.17,.06,.17,'#E4DED2'],
+    [.16,.2,0,.06,.3,.06,'#EFE9DC'],[0,.06,0,.19,.06,.19,'#E0DACE']]},
+  relogio:{p:'relógio',d:'re-ló-gio',r:.65,b:[
+    [0,1.7,0,1.15,1.15,.22,'#F7F4EE'],[0,1.7,-.14,1.32,1.32,.16,'#3A2A44'],
+    [0,2.35,0,.7,.16,.2,'#3A2A44'],[-.28,2.5,0,.24,.24,.2,'#C0C0C0'],[.28,2.5,0,.24,.24,.2,'#C0C0C0'],
+    [0,1.85,.13,.07,.4,.05,'#2B2B2B'],[.2,1.7,.13,.4,.07,.05,'#E2503D'],
+    [0,2.18,.13,.06,.1,.04,'#2B2B2B'],[0,1.22,.13,.06,.1,.04,'#2B2B2B'],
+    [.48,1.7,.13,.1,.06,.04,'#2B2B2B'],[-.48,1.7,.13,.1,.06,.04,'#2B2B2B'],
+    [0,.95,0,.5,.36,.3,'#3A2A44']]},
+
+  foguete:{p:'foguete',d:'fo-gue-te',r:.95,b:[
+    [0,1.7,0,1.05,2.5,1.05,'#F7F4EE'],[0,2.3,0,1.08,.35,1.08,'#E2503D'],[0,1.1,0,1.08,.3,1.08,'#E2503D'],
+    [0,3.25,0,.65,.75,.65,'#E2503D'],[0,3.7,0,.28,.3,.28,'#C9432F'],
+    [0,2.6,.55,.42,.42,.06,'#8FD3F4'],[0,2.6,.58,.26,.26,.04,'#BEE7FF'],
+    [-.7,.62,0,.32,1.1,.55,'#E2503D'],[.7,.62,0,.32,1.1,.55,'#E2503D'],
+    [0,.62,-.7,.55,1.1,.32,'#C9432F'],
+    [0,.28,0,.75,.36,.75,'#8A8A8A'],[0,0,0,.5,.3,.5,'#FFC244'],[0,-.2,0,.3,.2,.3,'#FF8A3D']]},
+  planeta:{p:'planeta',d:'pla-ne-ta',r:1.2,b:[
+    [0,1.8,0,1.9,1.9,1.9,'#D98A3D'],[0,2.5,0,1.5,.5,1.5,'#C97A2F'],[0,1.2,0,1.6,.4,1.6,'#C97A2F'],
+    [.45,2.1,.98,.55,.4,.04,'#B86F2C'],[-.4,1.5,.98,.4,.3,.04,'#B86F2C'],
+    [0,1.8,0,3.2,.14,3.2,'#E8C48A'],[0,1.8,0,3.6,.08,3.6,'#D4AC6E']],a:'gira'},
+  estrela:{p:'estrela',d:'es-tre-la',r:.6,b:[
+    [0,2.1,0,.75,.75,.22,'#FFD54A'],[.62,2.1,0,.62,.32,.2,'#FFD54A'],[-.62,2.1,0,.62,.32,.2,'#FFD54A'],
+    [0,2.72,0,.32,.62,.2,'#FFD54A'],[0,1.48,0,.32,.62,.2,'#FFD54A'],
+    [.4,1.72,0,.3,.3,.2,'#FFD54A'],[-.4,1.72,0,.3,.3,.2,'#FFD54A'],
+    [0,2.1,.12,.4,.4,.14,'#FFF0A8']],a:'gira'},
+  lua:{p:'lua',d:'lu-a',r:.95,b:[
+    [0,2.1,0,1.7,1.7,1.7,'#E4E1D8'],[0,2.9,0,1.1,.3,1.1,'#D6D3C9'],[0,1.3,0,1.2,.3,1.2,'#D6D3C9'],
+    [.5,2.5,.87,.42,.42,.05,'#C6C2B6'],[-.42,1.8,.87,.32,.32,.05,'#C6C2B6'],[.1,2.1,.87,.2,.2,.05,'#BDB9AC'],
+    [.87,2.3,-.2,.05,.36,.36,'#C6C2B6']],a:'flutua'},
+  nave:{p:'nave',d:'na-ve',r:1.3,b:[
+    [0,1.4,0,2.8,.4,2.8,'#9BA7B5'],[0,1.1,0,2,.35,2,'#8A96A4'],[0,1.68,0,1.3,.55,1.3,'#8FD3F4'],
+    [0,2,0,.8,.24,.8,'#BEE7FF'],[0,.85,0,1.2,.3,1.2,'#7A8695'],
+    [1.05,1.15,0,.26,.26,.26,'#FFD54A'],[-1.05,1.15,0,.26,.26,.26,'#FFD54A'],
+    [0,1.15,1.05,.26,.26,.26,'#FF6B6B'],[0,1.15,-1.05,.26,.26,.26,'#FF6B6B'],
+    [0,.55,0,.5,.3,.5,'#C0C0C0']],a:'flutua'},
+  astronauta:{p:'astronauta',d:'as-tro-nau-ta',r:.75,b:[
+    [0,1.1,0,.85,1.05,.6,'#F7F4EE'],[0,1.1,.32,.35,.45,.06,'#4FA8E8'],
+    [0,1.85,0,.75,.7,.65,'#F7F4EE'],[0,1.85,.34,.55,.45,.06,'#3A2A44'],[0,1.9,.37,.4,.28,.04,'#7FD8F7'],
+    [0,2.24,0,.5,.14,.5,'#C6C2B6'],
+    [-.58,1.15,0,.26,.85,.26,'#F7F4EE'],[.58,1.15,0,.26,.85,.26,'#F7F4EE'],
+    [-.6,.66,0,.28,.24,.28,'#E2503D'],[.6,.66,0,.28,.24,.28,'#E2503D'],
+    [-.24,.32,0,.28,.75,.28,'#F7F4EE'],[.24,.32,0,.28,.75,.28,'#F7F4EE'],
+    [-.24,.06,.05,.32,.16,.4,'#C6C2B6'],[.24,.06,.05,.32,.16,.4,'#C6C2B6'],
+    [0,1.2,-.42,.55,.8,.32,'#C6C2B6'],[0,1.55,-.44,.3,.16,.3,'#8A8A8A']]},
+  satelite:{p:'satélite',d:'sa-té-li-te',r:1,b:[
+    [0,2.1,0,.85,.85,.85,'#C6C2B6'],[0,2.1,0,.6,.95,.6,'#B0ACA0'],
+    [1.15,2.1,0,1.3,.65,.08,'#4FA8E8'],[-1.15,2.1,0,1.3,.65,.08,'#4FA8E8'],
+    [1.15,2.1,0,1.3,.16,.1,'#2E7BB5'],[-1.15,2.1,0,1.3,.16,.1,'#2E7BB5'],
+    [.55,2.1,0,.3,.1,.1,'#8A8A8A'],[-.55,2.1,0,.3,.1,.1,'#8A8A8A'],
+    [0,2.65,0,.12,.42,.12,'#8A8A8A'],[0,2.92,0,.5,.16,.5,'#F7F4EE'],[0,3.02,0,.24,.1,.24,'#E4E1D8']],a:'flutua'},
+  cometa:{p:'cometa',d:'co-me-ta',r:.65,b:[
+    [0,2.3,0,.8,.8,.8,'#8FD3F4'],[0,2.3,0,.5,.95,.5,'#BEE7FF'],
+    [-.75,2.3,0,.65,.5,.5,'#B9E6FF'],[-1.35,2.3,0,.55,.34,.34,'#DDF3FF'],[-1.85,2.3,0,.4,.2,.2,'#F0FAFF'],
+    [-.75,2.6,.2,.3,.18,.18,'#DDF3FF'],[-.9,2,-.2,.3,.18,.18,'#DDF3FF']],a:'voa'},
+  terra:{p:'Terra',d:'Ter-ra',r:1.05,b:[
+    [0,1.9,0,1.8,1.8,1.8,'#3A7BC8'],[0,2.6,0,1.3,.3,1.3,'#2E6BB0'],[0,1.2,0,1.4,.3,1.4,'#2E6BB0'],
+    [.3,2.2,.91,.75,.55,.04,'#3E8E3E'],[-.45,1.6,.91,.5,.45,.04,'#3E8E3E'],
+    [.91,1.9,-.2,.04,.55,.55,'#3E8E3E'],[-.91,2.1,.2,.04,.4,.5,'#3E8E3E'],
+    [0,2.72,0,.9,.16,.9,'#F0F5FA'],[0,1.08,0,.9,.16,.9,'#F0F5FA']],a:'gira'},
+  sol:{p:'sol',d:'sol',r:1.2,b:[
+    [0,2.6,0,1.9,1.9,1.9,'#FFD54A'],[0,2.6,0,2.1,1.3,2.1,'#FFC933'],
+    [1.35,2.6,0,.8,.55,.55,'#FFB01F'],[-1.35,2.6,0,.8,.55,.55,'#FFB01F'],
+    [0,2.6,1.35,.55,.55,.8,'#FFB01F'],[0,2.6,-1.35,.55,.55,.8,'#FFB01F'],
+    [0,3.85,0,.55,.8,.55,'#FFB01F'],[0,1.35,0,.55,.8,.55,'#FFB01F'],
+    [.95,3.55,0,.5,.5,.4,'#FFC233'],[-.95,3.55,0,.5,.5,.4,'#FFC233'],
+    [.3,2.9,.96,.18,.18,.04,'#E89A10'],[-.3,2.9,.96,.18,.18,.04,'#E89A10'],[0,2.5,.96,.5,.14,.04,'#E89A10']],a:'gira'}
+};
+Object.values(FIG).forEach(f=>f.s=f.d.split('-').length);
+
+/* frase curta de cada figurinha, para o modo leitura */
+const FRASES={
+  boi:'O boi come capim.', vaca:'A vaca dá leite.', porco:'O porco está na lama.',
+  cavalo:'O cavalo corre rápido.', ovelha:'A ovelha tem lã.', cachorro:'O cachorro late alto.',
+  cao:'O cão brinca comigo.', pato:'O pato nada no lago.', galinha:'A galinha bota ovos.',
+  passaro:'O pássaro canta feliz.', casa:'A casa é bonita.', trator:'O trator anda na terra.',
+  arvore:'A árvore tem folhas verdes.', pinheiro:'O pinheiro é bem alto.', flor:'A flor tem cheiro bom.',
+  borboleta:'A borboleta voa na flor.',
+  peixe:'O peixe nada no mar.', tubarao:'O tubarão tem dentes grandes.', baleia:'A baleia é gigante.',
+  polvo:'O polvo tem oito braços.', lula:'A lula nada no fundo.', concha:'A concha está na areia.',
+  coral:'O coral é colorido.', estrelaMar:'A estrela vive no mar.', tartaruga:'A tartaruga anda devagar.',
+  caranguejo:'O caranguejo anda de lado.',
+  bola:'A bola pula no chão.', pipa:'A pipa voa no vento.', banco:'O banco fica na praça.',
+  balao:'O balão sobe no céu.', sorvete:'O sorvete é gelado.', bicicleta:'A bicicleta tem duas rodas.',
+  bolo:'O bolo é doce.', pao:'O pão está quentinho.', doce:'O doce é gostoso.',
+  suco:'O suco é de laranja.', leite:'O leite é branco.', morango:'O morango é vermelho.',
+  biscoito:'Eu como o biscoito.', pirulito:'O pirulito é colorido.', mel:'O mel é da abelha.',
+  livro:'O livro tem histórias.', lapis:'O lápis escreve no papel.', regua:'A régua faz linha reta.',
+  globo:'O globo mostra o mundo.', maca:'A maçã é vermelha.', mochila:'A mochila leva os livros.',
+  caderno:'Eu escrevo no caderno.', onibus:'O ônibus leva as pessoas.', giz:'O giz escreve na lousa.',
+  relogio:'O relógio marca as horas.',
+  foguete:'O foguete voa alto.', planeta:'O planeta gira no espaço.', estrela:'A estrela brilha no céu.',
+  lua:'A lua aparece à noite.', nave:'A nave viaja no espaço.', astronauta:'O astronauta flutua no espaço.',
+  satelite:'O satélite gira no espaço.', cometa:'O cometa passa depressa.',
+  terra:'A Terra é o nosso planeta.', sol:'O sol brilha de dia.'
+};
+Object.entries(FRASES).forEach(([k,f])=>{if(FIG[k])FIG[k].fr=f;});
+
+/* ---------- 3. MUNDOS ---------- */
+const MUNDOS={
+  fazenda:{nome:'Fazenda',icone:'🚜',tipo:'campo',
+    ceus:[{n:'Dia',c:'#8FD3F4'},{n:'Tarde',c:'#F7B26A'},{n:'Noite',c:'#2B3170'},{n:'Nublado',c:'#B9C6D1'}],
+    chaos:[{n:'Grama',c1:'#6FBF4A',c2:'#5CA83C'},{n:'Terra',c1:'#B07C4E',c2:'#9C6A3F'},{n:'Palha',c1:'#E3C069',c2:'#CDA84F'},{n:'Pedra',c1:'#B8B8B8',c2:'#A3A3A3'}],
+    itens:['boi','vaca','porco','cavalo','ovelha','pato','galinha','cao','casa','trator','arvore','flor']},
+  mar:{nome:'Fundo do Mar',icone:'🐠',tipo:'agua',
+    ceus:[{n:'Água clara',c:'#2A9BC8'},{n:'Água funda',c:'#0E3F66'},{n:'Água verde',c:'#199B84'},{n:'Anoitecer',c:'#2C3F86'}],
+    chaos:[{n:'Areia',c1:'#EBD6A3',c2:'#DCC48D'},{n:'Pedrinhas',c1:'#A9B6BE',c2:'#95A3AC'},{n:'Corais',c1:'#F09BB4',c2:'#DC7F9B'},{n:'Algas',c1:'#4F9B62',c2:'#3F8551'}],
+    itens:['peixe','tubarao','baleia','polvo','lula','concha','coral','estrelaMar','tartaruga','caranguejo']},
+  parque:{nome:'Parque',icone:'🎠',tipo:'campo',
+    ceus:[{n:'Céu azul',c:'#8FD3F4'},{n:'Fim de tarde',c:'#F7A96A'},{n:'Estrelado',c:'#232A63'},{n:'Primavera',c:'#B6E3F7'}],
+    chaos:[{n:'Grama',c1:'#77C853',c2:'#63B043'},{n:'Calçada',c1:'#CFCFCF',c2:'#BABABA'},{n:'Areia',c1:'#EBD6A3',c2:'#D9C08A'},{n:'Colorido',c1:'#F5B8D8',c2:'#A8D8F5'}],
+    itens:['arvore','pinheiro','flor','bola','pipa','banco','balao','sorvete','cachorro','bicicleta','borboleta','passaro']},
+  confeitaria:{nome:'Confeitaria',icone:'🧁',tipo:'sala',parede:'#FFD9E8',
+    ceus:[{n:'Rosa',c:'#FFC6DE'},{n:'Menta',c:'#A8E6CF'},{n:'Baunilha',c:'#FFE9B8'},{n:'Chocolate',c:'#C99A72'}],
+    chaos:[{n:'Xadrez rosa',c1:'#FFFFFF',c2:'#FF9FC4'},{n:'Madeira',c1:'#D9A16A',c2:'#C08D57'},{n:'Azulejo',c1:'#E8F7FF',c2:'#A8D8F5'},{n:'Xadrez preto',c1:'#F2F2F2',c2:'#4A4A4A'}],
+    itens:['bolo','pao','doce','suco','leite','sorvete','morango','biscoito','pirulito','mel']},
+  escola:{nome:'Escola',icone:'🏫',tipo:'sala',parede:'#FFF3D9',
+    ceus:[{n:'Clarinho',c:'#FFF3D9'},{n:'Verde',c:'#CDEBD3'},{n:'Azul',c:'#CFE6FA'},{n:'Lilás',c:'#E4D6F7'}],
+    chaos:[{n:'Madeira',c1:'#D9A96A',c2:'#C4934F'},{n:'Azulejo',c1:'#F2F2F2',c2:'#A8D8CF'},{n:'Cimento',c1:'#CFCFCF',c2:'#BCBCBC'},{n:'Tapete azul',c1:'#9FC4EE',c2:'#8AB2E0'}],
+    itens:['livro','lapis','regua','globo','maca','mochila','caderno','onibus','giz','relogio']},
+  espaco:{nome:'Espaço',icone:'🚀',tipo:'espaco',
+    ceus:[{n:'Céu escuro',c:'#0B1030'},{n:'Nebulosa',c:'#3A1055'},{n:'Aurora',c:'#08243B'},{n:'Amanhecer',c:'#2B1A55'}],
+    chaos:[{n:'Solo da lua',c1:'#C8C8D2',c2:'#B4B4C0'},{n:'Solo de Marte',c1:'#C97046',c2:'#B25F3A'},{n:'Cratera',c1:'#9A9AA8',c2:'#86869A'},{n:'Gelo',c1:'#DDEFFA',c2:'#C4E0F0'}],
+    itens:['foguete','planeta','estrela','lua','nave','astronauta','satelite','cometa','terra','sol']}
+};
+MUNDOS.mar.ceus[1].c='#0E3F66';
+
+const CORES_GIZ=['#2B1237','#E23B3B','#F5911E','#F5D31E','#3FBF4B','#1E9BE2','#2B3FD4','#8B3FD4','#E2559B','#8A5A2B'];
+const PONTAS=[5,10,18,28];
+
+/* ---------- 4. ESTADO ---------- */
+const E={mundo:'fazenda',ceu:0,chao:0,jogo:'escrita',modo:'montar',som:true,maiusc:true,
+  objs:[],alvo:null,proxId:1,festejou:false,pontos:0,trofeus:{},lendoFrase:false,salvos:[]};
+
+/* --- conquistas: pontos e troféus, guardados no próprio aparelho --- */
+function carregarConquistas(){
+  try{
+    const d=JSON.parse(localStorage.getItem('mundoPalavras')||'{}');
+    E.pontos=d.pontos||0;E.trofeus=d.trofeus||{};
+  }catch(e){}
+}
+function salvarConquistas(){
+  try{localStorage.setItem('mundoPalavras',JSON.stringify({pontos:E.pontos,trofeus:E.trofeus}));}catch(e){}
+}
+function marcarPlacar(){
+  const t=Object.keys(E.trofeus).length;
+  const nt=$('#numTrofeus'),np=$('#numPontos');
+  if(nt)nt.textContent=t;
+  if(np)np.textContent=E.pontos;
+}
+function ganharPontos(n,texto){
+  E.pontos+=n;salvarConquistas();marcarPlacar();
+  const s=document.createElement('div');
+  s.className='ganhou';s.textContent=(texto||'')+' +'+n;
+  document.body.appendChild(s);
+  setTimeout(()=>s.remove(),1300);
+  bip(880,.08);setTimeout(()=>bip(1180,.1),90);
+}
+
+/* ---------- 5. SOM E FALA ---------- */
+let ac=null;
+function liberarSom(){
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    if(ac.state==='suspended')ac.resume();
+  }catch(e){}
+  removeEventListener('pointerdown',liberarSom);
+  removeEventListener('touchstart',liberarSom);
+}
+addEventListener('pointerdown',liberarSom,{once:false});
+addEventListener('touchstart',liberarSom,{once:false});
+function bip(f,d=.12,t='sine',v=.16){
+  if(!E.som)return;
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();o.type=t;o.frequency.value=f;
+    g.gain.setValueAtTime(v,ac.currentTime);g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);
+    o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+d);}catch(e){}
+}
+const pop=()=>bip(680,.09,'triangle');
+const ok3=()=>{bip(523,.12);setTimeout(()=>bip(659,.12),110);setTimeout(()=>bip(784,.22),220);};
+const nao=()=>bip(180,.16,'sawtooth',.12);
+function falar(t){
+  if(!E.som||E.jogo==='leitura'||!('speechSynthesis' in window))return;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='pt-BR';u.rate=.8;u.pitch=1.1;speechSynthesis.speak(u);}catch(e){}
+}
+
+/* ---------- 6. GEOMETRIA VOXEL ---------- */
+function malha(caixas){
+  const pos=[],nor=[],cor=[],C=new THREE.Color();
+  caixas.forEach(b=>{
+    const g=new THREE.BoxGeometry(b[3],b[4],b[5]).toNonIndexed();
+    g.translate(b[0],b[1],b[2]);
+    const Pp=g.attributes.position.array,Nn=g.attributes.normal.array;
+    C.set(b[6]);
+    for(let i=0;i<Pp.length;i+=3){
+      pos.push(Pp[i],Pp[i+1],Pp[i+2]); nor.push(Nn[i],Nn[i+1],Nn[i+2]);
+      const f=.72+.28*Math.abs(Nn[i+1])+.08*Nn[i]-.05*Nn[i+2];
+      cor.push(C.r*f,C.g*f,C.b*f);
+    }
+    g.dispose();
+  });
+  const G=new THREE.BufferGeometry();
+  G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  G.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));
+  G.setAttribute('color',new THREE.Float32BufferAttribute(cor,3));
+  G.computeBoundingSphere();
+  return G;
+}
+const MAT=new THREE.MeshLambertMaterial({vertexColors:true});
+// uma única geometria e dois materiais para todas as sombrinhas
+const GEO_SOMBRA=new THREE.CircleGeometry(1,16).rotateX(-Math.PI/2);
+const MAT_SOMBRA=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.2,depthWrite:false});
+const MAT_SOMBRA_AR=new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.12,depthWrite:false});
+function figura(chave){
+  const f=FIG[chave];
+  const m=new THREE.Mesh(malha(f.b),MAT);
+  m.userData={chave,fig:f};
+  return m;
+}
+
+/* ---------- 7. CENA ---------- */
+const alvoDiv=$('#mundo');
+let cena,cam,rend,grupoMundo,relogio;
+const jog={x:0,z:10,rot:Math.PI,pitch:-.06,alt:1.72};
+
+/* Mede a "força" do aparelho para escolher a qualidade inicial:
+   celular simples entra em qualidade baixa, computador entra em alta. */
+const TOQUE=matchMedia('(pointer:coarse)').matches;
+const NUCLEOS=navigator.hardwareConcurrency||2;
+const MEM=navigator.deviceMemory||(TOQUE?2:8);
+const FRACO=TOQUE&&(NUCLEOS<=4||MEM<=3);
+const Q={nitidez:FRACO?1:(TOQUE?1.35:Math.min(devicePixelRatio,2)),min:.6,max:Math.min(devicePixelRatio,2)};
+
+function iniciar3D(){
+  cena=new THREE.Scene();
+  cam=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,FRACO?260:400);
+  cam.rotation.order='YXZ';
+  try{
+    rend=new THREE.WebGLRenderer({
+      antialias:!FRACO&&!TOQUE,
+      alpha:false,stencil:false,
+      powerPreference:FRACO?'default':'high-performance'
+    });
+  }catch(err){
+    $('#carregando').innerHTML='<div style="padding:24px;max-width:420px;line-height:1.5">😕 Este aparelho não conseguiu abrir o 3D.<br><br>Tente um navegador atualizado (Chrome, Edge ou Safari) ou outro aparelho.</div>';
+    return;
+  }
+  rend.setPixelRatio(Math.min(devicePixelRatio,Q.nitidez));
+  rend.setSize(innerWidth,innerHeight);
+  alvoDiv.appendChild(rend.domElement);
+  relogio=new THREE.Clock();
+
+  rend.domElement.addEventListener('webglcontextlost',ev=>{
+    ev.preventDefault();E.pausado=true;
+    const c=$('#carregando');c.style.display='grid';
+    c.innerHTML='<div><div class="rodela"></div>Recuperando o mundo…</div>';
+  });
+  rend.domElement.addEventListener('webglcontextrestored',()=>{
+    E.pausado=false;montarMundo();$('#carregando').style.display='none';
+  });
+
+  let tempoResize=null;
+  const redimensionar=()=>{
+    clearTimeout(tempoResize);
+    tempoResize=setTimeout(()=>{
+      cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
+      rend.setSize(innerWidth,innerHeight);
+      rend.setPixelRatio(Math.min(devicePixelRatio,Q.nitidez));
+      if($('#telaLousa').classList.contains('on'))ajustarLousa();
+    },140);
+  };
+  addEventListener('resize',redimensionar);
+  addEventListener('orientationchange',redimensionar);
+  if(window.visualViewport)visualViewport.addEventListener('resize',redimensionar);
+  document.addEventListener('visibilitychange',()=>{E.pausado=document.hidden;});
+  animar();
+}
+function texChao(c1,c2){
+  const c=document.createElement('canvas');c.width=c.height=64;
+  const x=c.getContext('2d');
+  x.fillStyle=c1;x.fillRect(0,0,64,64);
+  x.fillStyle=c2;x.fillRect(0,0,32,32);x.fillRect(32,32,32,32);
+  x.globalAlpha=.12;
+  for(let i=0;i<220;i++){x.fillStyle=i%2?'#000':'#fff';x.fillRect(Math.random()*64|0,Math.random()*64|0,2,2);}
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(45,45);t.magFilter=THREE.NearestFilter;
+  return t;
+}
+function montarMundo(){
+  if(grupoMundo){
+    cena.remove(grupoMundo);
+    grupoMundo.traverse(o=>{                 // libera a memória do mundo anterior
+      if(o.geometry&&o.geometry!==GEO_SOMBRA)o.geometry.dispose();
+      const m=o.material;
+      if(m&&m!==MAT&&m!==MAT_SOMBRA&&m!==MAT_SOMBRA_AR){
+        if(m.map)m.map.dispose();
+        if(m.dispose)m.dispose();
+      }
+    });
+  }
+  grupoMundo=new THREE.Group();cena.add(grupoMundo);
+  E.objs.forEach(o=>o.raiz&&o.raiz.parent&&o.raiz.parent.remove(o.raiz));
+  E.objs=[];E.festejou=false;
+
+  const M=MUNDOS[E.mundo], ceu=M.ceus[E.ceu].c, ch=M.chaos[E.chao];
+  cena.background=new THREE.Color(ceu);
+  const denso = M.tipo==='agua';
+  cena.fog=new THREE.Fog(ceu, denso?6:22, FRACO?(denso?32:62):(denso?42:95));
+
+  // luzes
+  cena.children.filter(c=>c.isLight).forEach(l=>cena.remove(l));
+  cena.add(new THREE.HemisphereLight(ceu,ch.c2,M.tipo==='espaco'?.55:.95));
+  const sol=new THREE.DirectionalLight(0xffffff,M.tipo==='espaco'?.8:.62);
+  sol.position.set(14,26,10);cena.add(sol);
+
+  // chão
+  const chao=new THREE.Mesh(new THREE.PlaneGeometry(190,190),
+    new THREE.MeshLambertMaterial({map:texChao(ch.c1,ch.c2)}));
+  chao.rotation.x=-Math.PI/2;grupoMundo.add(chao);
+
+  const deco=[];
+  const R=(a,b)=>a+Math.random()*(b-a);
+  if(M.tipo==='campo'){
+    for(let i=0;i<(FRACO?4:7);i++){ // montanhas escalonadas ao fundo
+      const a=Math.random()*Math.PI*2,d=R(52,78),x=Math.cos(a)*d,z=Math.sin(a)*d,h=R(5,11);
+      const c=E.mundo==='parque'?'#4E8C55':'#3E6E4A';
+      for(let n=0;n<h;n++){const l=(h-n)*2.1;deco.push([x,n*1.6+.8,z,l,1.6,l,n%2?c:'#37634A']);}
+    }
+    for(let i=0;i<(FRACO?14:26);i++){ // moitas e pedras
+      const a=Math.random()*Math.PI*2,d=R(14,46),x=Math.cos(a)*d,z=Math.sin(a)*d;
+      if(Math.random()<.6){const t=1.2+Math.random();deco.push([x,.9,z,.4,1.8,.4,'#7B5230'],[x,2.1,z,1.6*t,.9,1.6*t,'#3E8E3E'],[x,2.75,z,1.1*t,.65,1.1*t,'#4CA24C']);}
+      else deco.push([x,.35,z,R(.8,1.6),.7,R(.8,1.6),'#9A9A9A']);
+    }
+  }
+  if(M.tipo==='agua'){
+    for(let i=0;i<(FRACO?22:40);i++){
+      const a=Math.random()*Math.PI*2,d=R(8,40),x=Math.cos(a)*d,z=Math.sin(a)*d;
+      if(Math.random()<.5){const h=R(1,3.4);deco.push([x,h/2,z,.35,h,.35,Math.random()<.5?'#3E8E5E':'#2E7A6E']);}
+      else deco.push([x,.3,z,R(.6,1.5),.6,R(.6,1.5),'#B9A98A']);
+    }
+    for(let i=0;i<(FRACO?7:12);i++){const a=Math.random()*Math.PI*2,d=R(10,38);
+      deco.push([Math.cos(a)*d,R(.5,1.4),Math.sin(a)*d,.5,1,.5,'#FF8FA8']);}
+  }
+  if(M.tipo==='espaco'){
+    for(let i=0;i<(FRACO?16:30);i++){const a=Math.random()*Math.PI*2,d=R(10,50),x=Math.cos(a)*d,z=Math.sin(a)*d;
+      deco.push([x,.25,z,R(1,3),.5,R(1,3),'#9A9AA8']);}
+    const est=[],ee=[];
+    for(let i=0;i<(FRACO?170:420);i++){const t=Math.random()*Math.PI*2,p=Math.acos(Math.random()),r=150;
+      est.push(Math.sin(p)*Math.cos(t)*r,Math.abs(Math.cos(p))*r+4,Math.sin(p)*Math.sin(t)*r);}
+    const gEst=new THREE.BufferGeometry();
+    gEst.setAttribute('position',new THREE.Float32BufferAttribute(est,3));
+    grupoMundo.add(new THREE.Points(gEst,new THREE.PointsMaterial({color:0xffffff,size:1.4,sizeAttenuation:true,fog:false})));
+  }
+  if(M.tipo==='sala'){ // paredes com janelas
+    const pc=M.parede,L=26,h=7;
+    for(const s of [[0,-L/2,L,.6],[0,L/2,L,.6],[-L/2,0,.6,L],[L/2,0,.6,L]]){
+      deco.push([s[0],h/2,s[1],s[2],h,s[3],pc]);
+      deco.push([s[0],h+.3,s[1],s[2]+1,.6,s[3]+1,'#8A6A9E']);
+    }
+    for(let i=-1;i<=1;i++){
+      deco.push([i*7,3.4,-L/2+.32,3,2.4,.12,'#BEE7FF'],[i*7,3.4,L/2-.32,3,2.4,.12,'#BEE7FF']);
+    }
+    deco.push([0,7.4,0,L,.5,L,'#F7F1E4']);
+  }
+  if(deco.length){
+    const md=new THREE.Mesh(malha(deco),MAT);
+    grupoMundo.add(md);
+    grupoMundo.userData.deco=md;
+  } else grupoMundo.userData.deco=null;
+
+  jog.x=0;jog.z=M.tipo==='sala'?9:12;jog.rot=Math.PI;jog.pitch=-.05;
+  $('#iconeMundo').textContent=M.icone;$('#nomeMundo').textContent=M.nome;
+  montarTira();atualizarMedidor();
+}
+
+/* selo que aparece em cima das figuras que ainda faltam escrever */
+let TEX_SELO=null;
+function texturaSelo(){
+  if(TEX_SELO)return TEX_SELO;
+  const c=document.createElement('canvas');c.width=c.height=160;
+  const x=c.getContext('2d');
+  x.fillStyle='rgba(255,255,255,.96)';x.beginPath();x.arc(80,80,62,0,7);x.fill();
+  x.lineWidth=9;x.strokeStyle='#9B5DC4';x.beginPath();x.arc(80,80,62,0,7);x.stroke();
+  x.font='72px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  x.textAlign='center';x.textBaseline='middle';x.fillText('✍️',80,86);
+  TEX_SELO=new THREE.CanvasTexture(c);
+  TEX_SELO.generateMipmaps=false;TEX_SELO.minFilter=THREE.LinearFilter;
+  return TEX_SELO;
+}
+function criarSelo(o){
+  if(o.selo)return;
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:texturaSelo(),transparent:true,depthTest:false}));
+  s.scale.set(1.1,1.1,1);s.renderOrder=998;
+  grupoMundo.add(s);o.selo=s;
+}
+function tirarSelo(o){
+  if(!o.selo)return;
+  grupoMundo.remove(o.selo);
+  if(o.selo.material.map!==TEX_SELO)o.selo.material.map.dispose();
+  o.selo.material.dispose();o.selo=null;
+}
+
+/* ---------- 8. OBJETOS DO JOGADOR ---------- */
+function colocar(chave,d){
+  if(!d&&E.objs.length>=(FRACO?12:18)){aviso('Já tem bastante coisa por aqui! 😊');nao();return;}
+  const f=FIG[chave];
+  const raiz=new THREE.Group();
+  const corpo=figura(chave);
+  raiz.add(corpo);
+  const sombra=new THREE.Mesh(GEO_SOMBRA,MAT_SOMBRA);
+  sombra.scale.setScalar(f.r*1.05);sombra.position.y=.03;raiz.add(sombra);
+
+  const lugar=d?{x:d.x,z:d.z}:lugarLivre(f.r);
+  raiz.position.set(lugar.x,0,lugar.z);
+  raiz.rotation.y=d?d.rot:(jog.rot+Math.PI+(Math.random()-.5)*.6);
+  if(d&&d.escala){raiz.scale.setScalar(d.escala);}
+  grupoMundo.add(raiz);
+
+  const o={id:E.proxId++,chave,fig:f,raiz,corpo,sombra,base:0,placa:null,esc:1,escala:1,t0:Math.random()*9};
+  corpo.geometry.computeBoundingBox();
+  o.altura=corpo.geometry.boundingBox.max.y;
+  if(f.a==='flutua'||f.a==='voa'||f.a==='nada'){o.base=f.a==='voa'?1.6:(f.a==='nada'?1.1:.5);sombra.material=MAT_SOMBRA_AR;}
+  if(d){                                   // veio de um mundo guardado
+    o.escala=d.escala||1;o.esc=d.esc||1;
+    raiz.position.y=o.base*o.escala;o.caindo=false;
+    E.objs.push(o);
+    if(d.placa){criarPlaca(o,d.placa);o.pontuou=true;o.lida=!!d.lida;o.digitada=d.digitada||null;}
+    else if(E.jogo==='leitura')rotular(o);
+    atualizarMedidor();E.listaSuja=true;
+    return o;
+  }
+  raiz.position.y=o.base+3.5;o.caindo=true;
+  E.objs.push(o);
+  if(E.jogo==='leitura')rotular(o);
+  pop();falar(f.p);atualizarMedidor();E.listaSuja=true;
+  aviso(E.jogo==='escrita'
+    ? 'Toque no ✍️ em cima da figurinha para escrever a palavra dela ✏️'
+    : 'Figurinha colocada! Ande e coloque mais 🌟');
+  return o;
+}
+/* procura um lugar com espaço de sobra, para as figurinhas nunca
+   ficarem uma em cima da outra */
+function distanciaMinima(r1,o){ return r1 + o.fig.r*o.escala + 2.6; }
+function lugarVago(x,z,r){
+  const M=MUNDOS[E.mundo],lim=(M.tipo==='sala'?10:52)-r;
+  if(Math.abs(x)>lim||Math.abs(z)>lim)return false;
+  if(Math.hypot(x-jog.x,z-jog.z)<r+1.6)return false;      // não nasce em cima da criança
+  return E.objs.every(o=>Math.hypot(x-o.raiz.position.x,z-o.raiz.position.z)>distanciaMinima(r,o));
+}
+function lugarLivre(r){
+  // 1) tenta na frente da criança, abrindo o leque e afastando aos poucos
+  for(let anel=0;anel<6;anel++){
+    const dist=4.2+anel*2.6;
+    for(let p=0;p<9;p++){
+      const desvio=(p===0?0:(p%2?1:-1)*Math.ceil(p/2)*.36);
+      const ang=jog.rot+desvio;
+      const x=jog.x-Math.sin(ang)*dist, z=jog.z-Math.cos(ang)*dist;
+      if(lugarVago(x,z,r))return {x,z};
+    }
+  }
+  // 2) tenta qualquer canto do mundo
+  const M=MUNDOS[E.mundo],lim=(M.tipo==='sala'?10:34)-r;
+  for(let t=0;t<160;t++){
+    const x=(Math.random()*2-1)*lim, z=(Math.random()*2-1)*lim;
+    if(lugarVago(x,z,r))return {x,z};
+  }
+  // 3) último caso: um pouco à frente mesmo
+  return {x:jog.x-Math.sin(jog.rot)*5.5, z:jog.z-Math.cos(jog.rot)*5.5};
+}
+
+/* palavra impressa: usada no modo leitura e quando a criança digita */
+function palavraImpressa(txt,cor){
+  const tam=150,med=document.createElement('canvas').getContext('2d');
+  const fonte=`800 ${tam}px "Baloo 2","Comic Sans MS",sans-serif`;
+  med.font=fonte;
+  const larg=Math.ceil(med.measureText(txt).width)+70;
+  const c=document.createElement('canvas');
+  c.width=Math.max(240,larg);c.height=Math.round(tam*1.55);
+  const x=c.getContext('2d');
+  x.font=fonte;x.textAlign='center';x.textBaseline='middle';
+  x.fillStyle=cor||'#3E1259';x.fillText(txt,c.width/2,c.height/2);
+  return {url:c.toDataURL('image/png'),w:c.width,h:c.height};
+}
+function textoDaFigura(o){
+  const t=(E.lendoFrase&&o.fig.fr)?o.fig.fr:o.fig.p;
+  return E.maiusc?t.toUpperCase():t.toLowerCase();
+}
+function alternarPalavraFrase(){
+  E.lendoFrase=!E.lendoFrase;
+  $('#btPalavraFrase').textContent=E.lendoFrase?'💬':'🔤';
+  $('#btPalavraFrase').title='Mostrando: '+(E.lendoFrase?'frase':'palavra');
+  if(E.jogo==='leitura')rotularTodos();
+  if($('#telaLeitura').classList.contains('on')&&E._lendo)abrirLeitura(E._lendo);
+  aviso(E.lendoFrase?'Agora aparecem frases curtas 💬':'Agora aparecem as palavras 🔤');
+  pop();
+}
+function rotular(o){criarPlaca(o,palavraImpressa(textoDaFigura(o),'#3E1259'));}
+function rotularTodos(){E.objs.forEach(rotular);}
+
+function tirar(o){
+  grupoMundo.remove(o.raiz);
+  if(o.placa)grupoMundo.remove(o.placa);
+  tirarSelo(o);
+  if(E.carregando===o)E.carregando=null;
+  E.objs=E.objs.filter(x=>x!==o);
+  E.alvo=null;E._estadoBt=null;nao();atualizarMedidor();E.listaSuja=true;
+}
+
+/* ---------- MUNDOS GUARDADOS (ficam disponíveis enquanto o jogo estiver aberto) ---------- */
+function guardarMundo(){
+  if(!E.objs.length){aviso('Coloque figurinhas antes de guardar este mundo 😉');nao();return;}
+  const escritas=E.objs.filter(o=>o.placa).length;
+  const agora=new Date();
+  const snap={
+    mundo:E.mundo,ceu:E.ceu,chao:E.chao,jogo:E.jogo,maiusc:E.maiusc,lendoFrase:E.lendoFrase,
+    hora:agora.getHours().toString().padStart(2,'0')+':'+agora.getMinutes().toString().padStart(2,'0'),
+    escritas,total:E.objs.length,
+    itens:E.objs.map(o=>({
+      chave:o.chave,x:o.raiz.position.x,z:o.raiz.position.z,rot:o.raiz.rotation.y,
+      escala:o.escala,esc:o.esc,lida:!!o.lida,digitada:o.digitada||null,
+      placa:o.placa?o.dados:null
+    }))
+  };
+  // se este mundo já tinha sido guardado nesta sessão, atualiza no lugar
+  const igual=E.salvos.findIndex(s=>s.mundo===snap.mundo&&s.jogo===snap.jogo);
+  if(igual>=0)E.salvos[igual]=snap; else E.salvos.push(snap);
+  ok3();
+  $('#resumoGuardado').textContent=MUNDOS[snap.mundo].icone+' '+MUNDOS[snap.mundo].nome+' — '+
+    snap.escritas+' de '+snap.total+(snap.jogo==='leitura'?' figuras lidas':' palavras escritas')+
+    ' · guardado às '+snap.hora;
+  $('#telaGuardado').classList.add('on');
+}
+function abrirGuardado(i){
+  const s=E.salvos[i];if(!s)return;
+  E.mundo=s.mundo;E.ceu=s.ceu;E.chao=s.chao;E.jogo=s.jogo;
+  E.maiusc=s.maiusc;E.lendoFrase=s.lendoFrase;E.modo='montar';E.carregando=null;E._estadoBt=null;
+  $('#telaMenu').classList.remove('on');$('#telaGuardado').classList.remove('on');
+  $('#hud').hidden=false;$('#mira').hidden=false;$('#legenda').hidden=false;$('#tira').hidden=false;
+  $('#btPronto').hidden = E.jogo==='leitura';
+  $('#btCaixaMundo').hidden = E.jogo!=='leitura';
+  $('#btPalavraFrase').hidden = E.jogo!=='leitura';
+  $('#btPronto').className='btn verde';$('#btPronto').innerHTML='✅ Pronto, montei!';
+  montarMundo();
+  s.itens.forEach(it=>colocar(it.chave,it));
+  marcarPlacar();atualizarMedidor();ok3();
+  aviso('Você voltou para '+MUNDOS[s.mundo].nome+'! Tudo continua como você deixou 💾');
+}
+function montarGaleria(){
+  const g=$('#galeria');if(!g)return;
+  g.innerHTML='';
+  $('#tituloGaleria').hidden=!E.salvos.length;
+  if(!E.salvos.length)return;
+  E.salvos.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.className='salvo';
+    b.innerHTML='<b>'+MUNDOS[s.mundo].icone+' '+MUNDOS[s.mundo].nome+'</b>'+
+      '<span>'+(s.jogo==='leitura'?'📖 leitura':'✏️ escrita')+' · '+s.escritas+'/'+s.total+' · '+s.hora+'</span>'+
+      '<em>👁️ Visitar de novo</em>';
+    b.onclick=()=>abrirGuardado(i);
+    g.appendChild(b);
+  });
+}
+$('#btGuardar3d').onclick=guardarMundo;
+$('#btContinuarGuardado').onclick=()=>{$('#telaGuardado').classList.remove('on');pop();};
+$('#btOutroMundoGuardado').onclick=()=>{
+  $('#telaGuardado').classList.remove('on');
+  montarMenu();$('#telaMenu').classList.add('on');
+};
+
+/* ---------- 9. CONTROLES ---------- */
+const teclas={};
+addEventListener('keydown',e=>{
+  teclas[e.code]=true;
+  if(e.code==='Space'){e.preventDefault();$('#interagir').click();}
+  if(e.code==='Escape')document.querySelectorAll('.tela.on').forEach(t=>t.id!=='telaMenu'&&t.classList.remove('on'));
+  if(E.modo==='montar'&&/^Digit[1-9]$/.test(e.code)){
+    const M=MUNDOS[E.mundo],i=+e.code.slice(5)-1;
+    if(M.itens[i])colocar(M.itens[i]);
+  }
+});
+addEventListener('keyup',e=>teclas[e.code]=false);
+
+// alavanca
+let jx=0,jz=0,idJ=null;
+const alav=$('#alavanca'),bol=$('#bolinha');
+alav.addEventListener('pointerdown',e=>{idJ=e.pointerId;alav.setPointerCapture(e.pointerId);moverJ(e);});
+alav.addEventListener('pointermove',e=>{if(e.pointerId===idJ)moverJ(e);});
+['pointerup','pointercancel'].forEach(t=>alav.addEventListener(t,e=>{
+  if(e.pointerId===idJ){idJ=null;jx=jz=0;bol.style.transform='translate(0,0)';}
+}));
+function moverJ(e){
+  const r=alav.getBoundingClientRect(),R=r.width/2;
+  let dx=e.clientX-(r.left+R),dy=e.clientY-(r.top+R);
+  const d=Math.hypot(dx,dy),lim=R-24;
+  if(d>lim){dx*=lim/d;dy*=lim/d;}
+  bol.style.transform=`translate(${dx}px,${dy}px)`;
+  jx=dx/lim;jz=dy/lim;
+}
+/* Olhar em volta arrastando; um toque curto em cima de uma figura age nela
+   (abre a lousa no modo escrita, o cartão no modo leitura, seleciona ao montar). */
+let idO=null,ox=0,oy=0,x0=0,y0=0,t0Toque=0,andou=false;
+const raio=new THREE.Raycaster(),pontA=new THREE.Vector2();
+function figuraTocada(e){
+  if(!cena||!E.objs.length)return null;
+  pontA.x=(e.clientX/innerWidth)*2-1;
+  pontA.y=-(e.clientY/innerHeight)*2+1;
+  raio.setFromCamera(pontA,cam);
+  const alvos=[];
+  E.objs.forEach(o=>{alvos.push(o.corpo);if(o.selo)alvos.push(o.selo);});
+  const hits=raio.intersectObjects(alvos,false);
+  if(!hits.length)return null;
+  const m=hits[0].object;
+  const obj=E.objs.find(o=>o.corpo===m||o.selo===m);
+  return obj?{obj,noSelo:obj.selo===m}:null;
+}
+alvoDiv.addEventListener('pointerdown',e=>{
+  if(idO===null){
+    idO=e.pointerId;ox=e.clientX;oy=e.clientY;
+    x0=e.clientX;y0=e.clientY;t0Toque=performance.now();andou=false;
+  }
+});
+addEventListener('pointermove',e=>{
+  if(e.pointerId!==idO)return;
+  jog.rot-=(e.clientX-ox)*.0045;
+  jog.pitch=Math.max(-1,Math.min(.9,jog.pitch-(e.clientY-oy)*.0035));
+  ox=e.clientX;oy=e.clientY;
+});
+addEventListener('pointerup',e=>{
+  if(e.pointerId!==idO)return;
+  idO=null;
+  const perto=Math.hypot(e.clientX-x0,e.clientY-y0)<12;
+  const rapido=performance.now()-t0Toque<450;
+  if(!perto||!rapido||E.carregando)return;
+  if(document.querySelector('.tela.on'))return;
+  const achado=figuraTocada(e);
+  if(!achado)return;
+  const alvo=achado.obj;
+  E.alvo=alvo;E._estadoBt=null;
+  if(achado.noSelo){                       // tocou no ✍️: vai direto para a lousa
+    pop();abrirLousa(alvo);return;
+  }
+  if(E.jogo==='leitura')abrirLeitura(alvo);
+  else if(E.modo==='escrever')abrirLousa(alvo);
+  else {pop();aviso('Figurinha escolhida! Toque no ✍️ para escrever, ou use os botões ao lado 👉');}
+});
+addEventListener('pointercancel',e=>{if(e.pointerId===idO)idO=null;});
+
+/* ---------- 10. LOOP ---------- */
+let amostras=0,somaMs=0,ultimoAjuste=0;
+function medirDesempenho(ms,agora){
+  somaMs+=ms;amostras++;
+  if(amostras<45)return;
+  const media=somaMs/amostras;somaMs=0;amostras=0;
+  if(agora-ultimoAjuste<2500)return;
+  if(media>26&&Q.nitidez>Q.min){            // está pesado: baixa a resolução
+    Q.nitidez=Math.max(Q.min,Q.nitidez-.2);
+    rend.setPixelRatio(Math.min(devicePixelRatio,Q.nitidez));ultimoAjuste=agora;
+  }else if(media<13&&Q.nitidez<Q.max){      // está sobrando: melhora um pouco
+    Q.nitidez=Math.min(Q.max,Q.nitidez+.15);
+    rend.setPixelRatio(Math.min(devicePixelRatio,Q.nitidez));ultimoAjuste=agora;
+  }
+}
+function animar(){
+  requestAnimationFrame(animar);
+  if(!cena||E.pausado){relogio.getDelta();return;}
+  const inicioQuadro=performance.now();
+  // com um cartão aberto o mundo fica parado: só o retrato precisa girar
+  if(document.querySelector('.tela.on')){
+    const d=Math.min(relogio.getDelta(),.05);
+    if(giro){giro.ang+=d*.9;retrato(giro.chave,giro.canvas,false,giro.ang);}
+    return;
+  }
+  const dt=Math.min(relogio.getDelta(),.05),t=relogio.getElapsedTime();
+
+  // teclado
+  let fx=-jz, fy=jx;
+  if(teclas.KeyW||teclas.ArrowUp)fx+=1;
+  if(teclas.KeyS||teclas.ArrowDown)fx-=1;
+  if(teclas.KeyA)fy-=1;
+  if(teclas.KeyD)fy+=1;
+  if(teclas.ArrowLeft)jog.rot+=1.8*dt;
+  if(teclas.ArrowRight)jog.rot-=1.8*dt;
+  const mag=Math.hypot(fx,fy);
+  if(mag>1){fx/=mag;fy/=mag;}
+  const v=5.2*dt;
+  let nx=jog.x-Math.sin(jog.rot)*fx*v+Math.cos(jog.rot)*fy*v;
+  let nz=jog.z-Math.cos(jog.rot)*fx*v-Math.sin(jog.rot)*fy*v;
+  // limites e colisão simples
+  const M=MUNDOS[E.mundo],lim=M.tipo==='sala'?11.5:58;
+  nx=Math.max(-lim,Math.min(lim,nx));nz=Math.max(-lim,Math.min(lim,nz));
+  E.objs.forEach(o=>{
+    if(o===E.carregando)return;
+    const dx=nx-o.raiz.position.x,dz=nz-o.raiz.position.z,d=Math.hypot(dx,dz),min=o.fig.r*o.escala+.55;
+    if(d<min&&d>0.001){nx=o.raiz.position.x+dx/d*min;nz=o.raiz.position.z+dz/d*min;}
+  });
+  jog.x=nx;jog.z=nz;
+  const bal=mag>.05?Math.sin(t*9)*.045:0;
+  cam.position.set(jog.x,jog.alt+bal,jog.z);
+  cam.rotation.y=jog.rot;cam.rotation.x=jog.pitch;
+
+  // figurinha carregada anda junto com a criança
+  if(E.carregando){
+    const c=E.carregando,d=2.6+c.fig.r*c.escala;
+    c.raiz.position.x=jog.x-Math.sin(jog.rot)*d;
+    c.raiz.position.z=jog.z-Math.cos(jog.rot)*d;
+    c.caindo=false;
+  }
+
+  // animações e queda dos objetos
+  let perto=null,melhor=1e9;
+  E.objs.forEach(o=>{
+    const a=o.fig.a;
+    let y=o.base*o.escala;
+    if(a==='flutua')y+=Math.sin(t*1.6+o.t0)*.22;
+    if(a==='voa'){y+=Math.sin(t*2.4+o.t0)*.5;o.raiz.rotation.y+=dt*.5;}
+    if(a==='nada'){y+=Math.sin(t*1.2+o.t0)*.3;o.raiz.rotation.y+=dt*.22;o.corpo.rotation.z=Math.sin(t*2+o.t0)*.08;}
+    if(a==='gira')o.raiz.rotation.y+=dt*.7;
+    if(o.caindo){
+      o.raiz.position.y+=(y-o.raiz.position.y)*Math.min(1,dt*7);
+      if(Math.abs(o.raiz.position.y-y)<.03){o.caindo=false;bip(300,.08,'square',.1);}
+    } else o.raiz.position.y=y;
+
+    const d=Math.hypot(jog.x-o.raiz.position.x,jog.z-o.raiz.position.z);
+    if(d<4.2+o.fig.r*o.escala&&d<melhor){melhor=d;perto=o;}
+    const destaque=(perto===o);
+    o.corpo.scale.setScalar(destaque?1+Math.sin(t*6)*.03:1);
+    const topo=o.raiz.position.y+o.altura*o.escala;
+    if(o.placa){
+      o.placa.position.set(o.raiz.position.x,topo+1.1+Math.sin(t*1.4+o.t0)*.07,o.raiz.position.z);
+    }
+    // selo ✍️ nas figuras que ainda faltam escrever
+    const querSelo = (E.jogo==='escrita'&&!o.placa&&o!==E.carregando);
+    if(querSelo){
+      if(!o.selo)criarSelo(o);
+      o.selo.position.set(o.raiz.position.x,topo+1.05+Math.sin(t*2.2+o.t0)*.14,o.raiz.position.z);
+      const z=1+(perto===o?.22:0)+Math.sin(t*3+o.t0)*.05;
+      o.selo.scale.set(1.35*z,1.35*z,1);
+    }else if(o.selo)tirarSelo(o);
+  });
+  if(E.carregando)perto=E.carregando;
+  E.alvo=perto;
+  const estado=!perto?'nada':(E.carregando?'levando':
+    (E.jogo==='leitura'?'ler':(E.modo==='montar'?'tirar':(perto.placa?'refazer':'escrever'))));
+  if(estado!==E._estadoBt){
+    E._estadoBt=estado;
+    const bt=$('#interagir');
+    bt.classList.toggle('pronto',estado!=='nada');
+    bt.innerHTML={
+      nada:'✋<small>Interagir</small>',
+      ler:'📖<small>Ler</small>',
+      tirar:'🗑️<small>Tirar</small>',
+      levando:'📍<small>Soltar aqui</small>',
+      escrever:'✏️<small>Escrever</small>',
+      refazer:'🔁<small>De novo</small>'
+    }[estado];
+    const ctr=$('#controles');
+    ctr.hidden = (estado==='nada'||estado==='escrever');
+    const soPalavra = estado==='refazer';
+    ctr.children[0].hidden = soPalavra;   // girar
+    ctr.children[1].hidden = false;       // tamanho
+    ctr.children[2].hidden = soPalavra;   // pegar e tirar
+    $('#btTirar').hidden = false;
+    $('#btMover').innerHTML = E.carregando?'📍 Soltar':'✋ Pegar';
+    $('#btMover').classList.toggle('ativo',!!E.carregando);
+  }
+
+  rend.render(cena,cam);
+  medirDesempenho(performance.now()-inicioQuadro,inicioQuadro);
+}
+
+/* ---------- 11. PLACAS COM A LETRA DA CRIANÇA ---------- */
+function criarPlaca(o,dados){
+  if(o.placa){grupoMundo.remove(o.placa);o.placa=null;}
+  const c=document.createElement('canvas');
+  const larg=560,alt=Math.round(larg*(dados.h/dados.w)*.92+90);
+  c.width=larg;c.height=alt;
+  const x=c.getContext('2d');
+  x.fillStyle='#ffffff';arred(x,6,6,larg-12,alt-12,36);x.fill();
+  x.lineWidth=10;x.strokeStyle='#9B5DC4';arred(x,6,6,larg-12,alt-12,36);x.stroke();
+  const im=new Image();
+  im.onload=()=>{
+    const w=larg-80,h=w*(dados.h/dados.w);
+    x.drawImage(im,40,(alt-h)/2,w,h);
+    const tex=new THREE.CanvasTexture(c);
+    tex.generateMipmaps=false;tex.minFilter=THREE.LinearFilter;tex.magFilter=THREE.LinearFilter;
+    if(o.placaTex)o.placaTex.dispose();
+    o.placaTex=tex;
+    const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
+    const esc=2.6*o.esc;
+    spr.scale.set(esc,esc*(alt/larg),1);
+    spr.renderOrder=999;
+    o.altPlaca=(o.fig.r*1.2)+(o.base||0)+2.2;
+    spr.position.set(o.raiz.position.x,o.altPlaca,o.raiz.position.z);
+    grupoMundo.add(spr);o.placa=spr;o.placaCanvas=c;o.dados=dados;
+  };
+  im.src=dados.url;
+}
+function arred(x,a,b,w,h,r){
+  x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);
+  x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath();
+}
+
+/* ---------- 12. LOUSA DE ESCRITA ---------- */
+const cv=$('#giz'),ctx=cv.getContext('2d');
+let alvoEscrita=null,corGiz=CORES_GIZ[0],ponta=10,borracha=false,pintando=false,ultimo=null,idP=null,pilha=[];
+function paleta(){
+  document.querySelectorAll('.cores').forEach(bc=>{
+    bc.innerHTML='';
+    CORES_GIZ.forEach(c=>{
+      const b=document.createElement('button');b.className='cor'+(c===corGiz?' on':'');b.style.background=c;
+      b.onclick=()=>{corGiz=c;borracha=false;$('#btBorracha').style.background='#fff';paleta();previaTexto();bip(600,.05);};
+      bc.appendChild(b);
+    });
+  });
+  const pb=$('#pontas');pb.innerHTML='';
+  PONTAS.forEach(p=>{
+    const b=document.createElement('button');b.className='ponta'+(p===ponta?' on':'');
+    b.innerHTML=`<i style="width:${p+2}px;height:${p+2}px;background:${borracha?'#999':corGiz}"></i>`;
+    b.onclick=()=>{ponta=p;paleta();bip(500,.05);};pb.appendChild(b);
+  });
+}
+
+/* --- painel de digitar --- */
+let maiuscula=true, abaAtiva='mao';
+function trocarAba(qual){
+  abaAtiva=qual;
+  $('#abaMao').classList.toggle('on',qual==='mao');
+  $('#abaTeclado').classList.toggle('on',qual==='teclado');
+  $('#painelMao').hidden=qual!=='mao';
+  $('#painelTeclado').hidden=qual!=='teclado';
+  pop();
+  if(qual==='teclado')setTimeout(()=>$('#entradaTexto').focus(),80);
+  else requestAnimationFrame(ajustarLousa);
+}
+$('#abaMao').onclick=()=>trocarAba('mao');
+$('#abaTeclado').onclick=()=>trocarAba('teclado');
+$('#btCaixa').onclick=()=>{
+  maiuscula=!maiuscula;
+  $('#btCaixa').textContent=maiuscula?'🔤 MAIÚSCULA':'🔡 minúscula';
+  previaTexto();pop();
+};
+$('#btApagarTexto').onclick=()=>{$('#entradaTexto').value='';previaTexto();nao();};
+$('#entradaTexto').addEventListener('input',previaTexto);
+$('#entradaTexto').addEventListener('keydown',e=>{if(e.key==='Enter')$('#btGuardar').click();});
+function textoAtual(){
+  const t=$('#entradaTexto').value.trim();
+  return maiuscula?t.toUpperCase():t.toLowerCase();
+}
+function previaTexto(){
+  const p=$('#previaTexto'),t=textoAtual();
+  p.textContent=t||'…';
+  p.style.color=t?corGiz:'#D3C3E2';
+}
+function textoParaPlaca(){ // transforma a palavra digitada em imagem
+  const t=textoAtual();
+  if(!t)return null;
+  const r=palavraImpressa(t,corGiz);
+  r.digitado=t;
+  return r;
+}
+/* ajusta a resolução interna da lousa ao tamanho real que ela ocupa,
+   para o traço sair redondo em qualquer tela */
+function ajustarLousa(){
+  const q=document.querySelector('#painelMao .quadro');
+  if(!q)return;
+  const r=q.getBoundingClientRect();
+  if(r.width<40||r.height<40)return;
+  const w=Math.max(300,Math.min(1900,Math.round(r.width))),
+        a=Math.max(180,Math.min(1100,Math.round(r.height)));
+  if(Math.abs(cv.width-w)<5&&Math.abs(cv.height-a)<5)return;
+  const tmp=document.createElement('canvas');
+  tmp.width=cv.width;tmp.height=cv.height;
+  tmp.getContext('2d').drawImage(cv,0,0);
+  cv.width=w;cv.height=a;
+  ctx.drawImage(tmp,0,0,w,a);          // reaproveita o que já estava escrito
+  pilha=[];
+}
+function limpaLousa(){ctx.clearRect(0,0,cv.width,cv.height);pilha=[];pintando=false;ultimo=null;idP=null;$('#marcaDagua').classList.remove('some');}
+function guarda(){pilha.push(ctx.getImageData(0,0,cv.width,cv.height));if(pilha.length>5)pilha.shift();}
+function pt(cx,cy){const r=cv.getBoundingClientRect();return{x:(cx-r.left)*(cv.width/r.width),y:(cy-r.top)*(cv.height/r.height)};}
+function traco0(x,y){
+  guarda();pintando=true;ultimo={x,y};$('#marcaDagua').classList.add('some');
+  ctx.globalCompositeOperation=borracha?'destination-out':'source-over';
+  ctx.strokeStyle=corGiz;ctx.fillStyle=corGiz;ctx.lineWidth=borracha?ponta*2.6:ponta;
+  ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.beginPath();ctx.arc(x,y,ctx.lineWidth/2,0,Math.PI*2);ctx.fill();
+}
+function traco1(x,y){if(!pintando||!ultimo)return;ctx.beginPath();ctx.moveTo(ultimo.x,ultimo.y);ctx.lineTo(x,y);ctx.stroke();ultimo={x,y};}
+function traco2(){if(!pintando)return;pintando=false;ultimo=null;idP=null;ctx.globalCompositeOperation='source-over';}
+if(window.PointerEvent){
+  cv.addEventListener('pointerdown',e=>{if(idP!==null)return;idP=e.pointerId;e.preventDefault();const p=pt(e.clientX,e.clientY);traco0(p.x,p.y);});
+  addEventListener('pointermove',e=>{if(idP===null||e.pointerId!==idP)return;e.preventDefault();const p=pt(e.clientX,e.clientY);traco1(p.x,p.y);},{passive:false});
+  addEventListener('pointerup',e=>{if(e.pointerId===idP)traco2();});
+  addEventListener('pointercancel',e=>{if(e.pointerId===idP)traco2();});
+}else{
+  cv.addEventListener('mousedown',e=>{const p=pt(e.clientX,e.clientY);traco0(p.x,p.y);});
+  addEventListener('mousemove',e=>{const p=pt(e.clientX,e.clientY);traco1(p.x,p.y);});
+  addEventListener('mouseup',traco2);
+  cv.addEventListener('touchstart',e=>{e.preventDefault();const p=pt(e.touches[0].clientX,e.touches[0].clientY);traco0(p.x,p.y);},{passive:false});
+  cv.addEventListener('touchmove',e=>{e.preventDefault();const p=pt(e.touches[0].clientX,e.touches[0].clientY);traco1(p.x,p.y);},{passive:false});
+  addEventListener('touchend',traco2);
+}
+$('#btDesfazer').onclick=()=>{if(pilha.length){ctx.putImageData(pilha.pop(),0,0);bip(320,.08);}};
+$('#btLimpa').onclick=()=>{limpaLousa();nao();};
+$('#btBorracha').onclick=e=>{borracha=!borracha;e.currentTarget.style.background=borracha?'#FFD87A':'#fff';paleta();};
+
+/* --- um único renderizador para todas as miniaturas (evita estourar
+   o limite de contextos WebGL do navegador) --- */
+let rMini=null;
+function mini(w,h){
+  if(!rMini){
+    rMini=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    rMini.setPixelRatio(1);
+  }
+  rMini.setSize(w,h,false);
+  return rMini;
+}
+const cacheMini={};
+function cenaMini(chave){
+  if(cacheMini[chave])return cacheMini[chave];
+  const f=FIG[chave],sc=new THREE.Scene();
+  const m=new THREE.Mesh(malha(f.b),MAT);
+  sc.add(m);
+  sc.add(new THREE.HemisphereLight(0xffffff,0x8899aa,1.15));
+  const d=new THREE.DirectionalLight(0xffffff,.55);d.position.set(3,6,4);sc.add(d);
+  m.geometry.computeBoundingSphere();
+  cacheMini[chave]={sc,m,bs:m.geometry.boundingSphere};
+  return cacheMini[chave];
+}
+let giro=null; // retrato que fica girando dentro do cartão
+function retrato(chave,canvas,animado,ang){
+  if(typeof THREE==='undefined')return;
+  const M3=cenaMini(chave);
+  M3.m.rotation.y=ang||0;
+  const bs=M3.bs;
+  const cm=new THREE.PerspectiveCamera(42,canvas.width/canvas.height,.1,80);
+  cm.position.set(bs.radius*2.2,bs.center.y+bs.radius*.75,bs.radius*2.2);
+  cm.lookAt(0,bs.center.y,0);
+  const r=mini(canvas.width,canvas.height);
+  r.render(M3.sc,cm);
+  const cx=canvas.getContext('2d');
+  cx.clearRect(0,0,canvas.width,canvas.height);
+  cx.drawImage(r.domElement,0,0,canvas.width,canvas.height);
+  if(animado)giro={chave,canvas,ang:0};
+}
+function abrirLousa(o){
+  alvoEscrita=o;limpaLousa();borracha=false;$('#btBorracha').style.background='#fff';paleta();
+  $('#entradaTexto').value='';previaTexto();trocarAba('mao');
+  retrato(o.chave,$('#retrato'),true);
+  $('#silabas').textContent=o.fig.s+(o.fig.s===1?' palminha':' palminhas');
+  const n=o.fig.p.replace(/[^a-zA-ZÀ-ú]/g,'').length;
+  $('#segredo').textContent='?'.repeat(Math.max(2,n));$('#segredo').dataset.ab='0';
+  $('#btEspiar').textContent='👁️ Mostrar';
+  $('#tituloLousa').textContent=o.placa?'Quer escrever de novo? ✏️':'Que nome tem isso? ✏️';
+  $('#telaLousa').classList.add('on');
+  requestAnimationFrame(()=>{ajustarLousa();limpaLousa();});
+  setTimeout(()=>falar(o.fig.p),250);
+}
+$('#btFalar').onclick=()=>{const s=E.som;E.som=true;falar(alvoEscrita.fig.p);E.som=s;};
+$('#btPalmas').onclick=()=>{let i=0;const t=setInterval(()=>{bip(880,.07,'square',.14);if(++i>=alvoEscrita.fig.s)clearInterval(t);},260);};
+$('#btEspiar').onclick=()=>{
+  const s=$('#segredo');
+  if(s.dataset.ab==='1'){s.textContent='?'.repeat(Math.max(2,alvoEscrita.fig.p.replace(/[^a-zA-ZÀ-ú]/g,'').length));s.dataset.ab='0';$('#btEspiar').textContent='👁️ Mostrar';}
+  else{s.textContent=alvoEscrita.fig.p.toUpperCase();s.dataset.ab='1';$('#btEspiar').textContent='🙈 Esconder';}
+};
+$('#btVoltarExplorar').onclick=()=>$('#telaLousa').classList.remove('on');
+function recorta(){
+  const d=ctx.getImageData(0,0,cv.width,cv.height).data;
+  let x0=cv.width,y0=cv.height,x1=0,y1=0,achou=false;
+  for(let y=0;y<cv.height;y++)for(let x=0;x<cv.width;x++)
+    if(d[(y*cv.width+x)*4+3]>12){achou=true;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;}
+  if(!achou)return null;
+  const m=14;x0=Math.max(0,x0-m);y0=Math.max(0,y0-m);x1=Math.min(cv.width,x1+m);y1=Math.min(cv.height,y1+m);
+  const w=x1-x0,h=y1-y0,c=document.createElement('canvas');c.width=w;c.height=h;
+  c.getContext('2d').drawImage(cv,x0,y0,w,h,0,0,w,h);
+  return{url:c.toDataURL('image/png'),w,h};
+}
+$('#btGuardar').onclick=()=>{
+  const r = abaAtiva==='mao' ? recorta() : textoParaPlaca();
+  if(!r){
+    nao();
+    const h=$('#tituloLousa');
+    h.textContent = abaAtiva==='mao' ? 'Escreva na lousa antes de tocar em Pronto ✍️' : 'Digite a palavra antes de tocar em Pronto ⌨️';
+    setTimeout(()=>h.textContent='Que nome tem isso? ✏️',2400);
+    return;
+  }
+  alvoEscrita.digitada = r.digitado || null;
+  criarPlaca(alvoEscrita,r);
+  tirarSelo(alvoEscrita);
+  $('#telaLousa').classList.remove('on');
+  ok3();
+  if(!alvoEscrita.pontuou){
+    alvoEscrita.pontuou=true;
+    ganharPontos(10+5*alvoEscrita.fig.s,'✍️');
+  }
+  atualizarMedidor();E.listaSuja=true;
+  aviso('Palavra escrita! Ela ficou flutuando no ar 🌟');
+};
+
+/* ---------- 13. HUD ---------- */
+function aviso(t){
+  const d=$('#dica');
+  if(!t){d.style.opacity='0';return;}
+  d.textContent=t;d.style.opacity='1';
+  clearTimeout(d._t);d._t=setTimeout(()=>d.style.opacity='0',4200);
+}
+function atualizarMedidor(){
+  const f=E.objs.filter(o=>o.placa).length;
+  if(E.jogo==='leitura'){
+    const lidas=E.objs.filter(o=>o.lida).length;
+    $('#contador').textContent=lidas+'/'+E.objs.length;
+    $('#trilhoFill').style.width=(E.objs.length?lidas/E.objs.length*100:0)+'%';
+    $('#estadoModo').textContent='modo leitura 📖';
+    if(E.objs.length>=3&&lidas===E.objs.length&&!E.festejou)festa();
+    return;
+  }
+  $('#contador').textContent=f+'/'+E.objs.length;
+  $('#trilhoFill').style.width=(E.objs.length?f/E.objs.length*100:0)+'%';
+  $('#estadoModo').textContent=E.modo==='montar'?'montando o mundo':'hora de escrever';
+  if(E.objs.length>1&&f===E.objs.length&&E.modo==='escrever'&&!E.festejou)festa();
+}
+function montarTira(){
+  const rolo=$('#rolo');rolo.innerHTML='';
+  MUNDOS[E.mundo].itens.forEach((k,i)=>{
+    const f=FIG[k],b=document.createElement('button');b.className='fig';
+    const cv2=document.createElement('canvas');cv2.width=110;cv2.height=96;
+    b.appendChild(cv2);
+    const rot=['','1 sílaba','2 sílabas','3 sílabas','polissílaba','polissílaba'][Math.min(f.s,5)];
+    const sp=document.createElement('span');sp.className='sil';sp.textContent=rot;b.appendChild(sp);
+    b.onclick=()=>colocar(k);
+    rolo.appendChild(b);
+    setTimeout(()=>retrato(k,cv2),20+i*25);
+  });
+}
+$('#tiraEsq').onclick=()=>$('#rolo').scrollBy({left:-220,behavior:'smooth'});
+$('#tiraDir').onclick=()=>$('#rolo').scrollBy({left:220,behavior:'smooth'});
+$('#tiraToggle').onclick=()=>{
+  const t=$('#tira'),min=t.classList.toggle('min');
+  $('#tiraToggle').innerHTML=min?'🧸 Figurinhas ▲':'▼';
+  pop();
+};
+
+$('#interagir').onclick=()=>{
+  if(E.carregando){soltarFig();return;}
+  if(!E.alvo){aviso('Chegue mais perto de uma figurinha para interagir 🚶');nao();return;}
+  if(E.jogo==='leitura')abrirLeitura(E.alvo);
+  else if(E.modo==='montar')tirar(E.alvo);
+  else abrirLousa(E.alvo);
+};
+$('#btTirar').onclick=()=>{if(E.alvo)tirar(E.alvo);};
+function soltarFig(){
+  if(!E.carregando)return;
+  E.carregando=null;E._estadoBt=null;pop();
+  aviso('Figurinha colocada aqui! 📍');
+}
+$('#btMover').onclick=()=>{
+  if(E.carregando){soltarFig();return;}
+  if(!E.alvo){nao();return;}
+  E.carregando=E.alvo;E._estadoBt=null;pop();
+  aviso('Ande até onde quiser e toque em 📍 Soltar');
+};
+
+/* cartão do modo leitura */
+function abrirLeitura(o){
+  retrato(o.chave,$('#retrato2'),true);
+  $('#qtdSilabas').textContent=o.fig.s+(o.fig.s===1?' sílaba':' sílabas');
+  $('#palavraGrande').textContent=textoDaFigura(o);
+  $('#btPalavraFraseCartao').textContent=E.lendoFrase?'🔤 ver a palavra':'💬 ver a frase';
+  const sil=$('#silabasGrande');sil.innerHTML='';
+  if(E.lendoFrase&&o.fig.fr){
+    o.fig.fr.replace('.','').split(' ').forEach(w=>{
+      const e=document.createElement('span');
+      e.textContent=E.maiusc?w.toUpperCase():w.toLowerCase();
+      sil.appendChild(e);
+    });
+  }else{
+    o.fig.d.split('-').forEach(s=>{
+      const e=document.createElement('span');
+      e.textContent=E.maiusc?s.toUpperCase():s.toLowerCase();
+      sil.appendChild(e);
+    });
+  }
+  $('#btCaixaLeitura').textContent=E.maiusc?'🔡 ver em minúscula':'🔠 ver em MAIÚSCULA';
+  E._lendo=o;$('#telaLeitura').classList.add('on');pop();
+  setTimeout(()=>{const s=E.som;E.som=true;falar(E.lendoFrase&&o.fig.fr?o.fig.fr:o.fig.p);E.som=s;},250);
+  if(!o.pontuou){o.pontuou=true;o.lida=true;ganharPontos(5+2*o.fig.s,'📖');atualizarMedidor();}
+}
+function trocarCaixa(){
+  E.maiusc=!E.maiusc;
+  if(E.jogo==='leitura')rotularTodos();
+  pop();
+}
+$('#btCaixaLeitura').onclick=()=>{trocarCaixa();abrirLeitura(E._lendo);};
+$('#fecharLeitura').onclick=$('#fecharLeitura2').onclick=()=>$('#telaLeitura').classList.remove('on');
+$('#btCaixaMundo').onclick=trocarCaixa;
+$('#btPalavraFrase').onclick=alternarPalavraFrase;
+$('#btPalavraFraseCartao').onclick=alternarPalavraFrase;
+function ajustar(f){
+  const o=E.alvo;if(!o)return;
+  if(E.modo==='escrever'&&o.placa){          // muda o tamanho da palavra escrita
+    o.esc=Math.max(.6,Math.min(3.4,o.esc*f));
+    const c=o.placaCanvas,e=2.6*o.esc;
+    o.placa.scale.set(e,e*(c.height/c.width),1);
+  }else{                                      // muda o tamanho da figurinha
+    o.escala=Math.max(.35,Math.min(3.2,o.escala*f));
+    o.raiz.scale.setScalar(o.escala);
+  }
+}
+/* botões que agem na hora e continuam agindo enquanto ficam pressionados */
+function segurar(sel,fn,espera=260,ritmo=55){
+  const el=$(sel);let t1=null,t2=null;
+  const parar=()=>{clearTimeout(t1);clearInterval(t2);t1=t2=null;};
+  el.addEventListener('pointerdown',e=>{
+    e.preventDefault();e.stopPropagation();
+    fn();
+    t1=setTimeout(()=>{t2=setInterval(fn,ritmo);},espera);
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(t=>el.addEventListener(t,parar));
+  addEventListener('pointerup',parar);
+  addEventListener('pointercancel',parar);
+}
+let tiquetaque=0;
+function tique(f){ if(++tiquetaque%3===0)bip(f,.05,'sine',.1); }
+segurar('#btMaior',()=>{ajustar(1.06);tique(720);});
+segurar('#btMenor',()=>{ajustar(1/1.06);tique(420);});
+segurar('#btGirarE',()=>{if(E.alvo){E.alvo.raiz.rotation.y+=Math.PI/24;tique(560);}});
+segurar('#btGirarD',()=>{if(E.alvo){E.alvo.raiz.rotation.y-=Math.PI/24;tique(500);}});
+
+$('#btPronto').onclick=()=>{
+  soltarFig();
+  if(E.modo==='montar'){
+    if(E.objs.length<2){aviso('Coloque pelo menos 2 figurinhas antes de escrever 😉');nao();return;}
+    E.modo='escrever';$('#tira').hidden=true;
+    $('#btPronto').className='btn manga';$('#btPronto').innerHTML='🧱 Voltar a montar';
+    aviso('Agora chegue perto de cada figurinha e toque em Interagir ✏️');ok3();
+  }else{
+    E.modo='montar';$('#tira').hidden=false;
+    $('#btPronto').className='btn verde';$('#btPronto').innerHTML='✅ Pronto, montei!';
+    aviso('Modo montar: coloque ou tire figurinhas.');pop();
+  }
+  atualizarMedidor();
+};
+$('#btSom').onclick=e=>{E.som=!E.som;e.currentTarget.textContent=E.som?'🔊':'🔇';if(E.som)pop();};
+function classe(s){return s===1?'monossílaba':s===2?'dissílaba':s===3?'trissílaba':'polissílaba';}
+function montarLista(){
+  const ul=$('#listaPalavras');ul.innerHTML='';let n=0;
+  if(!E.objs.length){ul.innerHTML='<li>Nenhuma figurinha no mundo ainda.</li>';return;}
+  E.objs.forEach(o=>{
+    const li=document.createElement('li');li.className=o.placa?'ok':'';
+    const c=document.createElement('canvas');c.width=110;c.height=94;li.appendChild(c);
+    const s=document.createElement('span');s.textContent=o.fig.p;li.appendChild(s);
+    const tg=document.createElement('span');tg.className='tag';
+    tg.textContent=o.digitada?('digitou: '+o.digitada):(o.fig.s+' · '+classe(o.fig.s));
+    li.appendChild(tg);
+    const st=document.createElement('span');st.textContent=o.placa?'✅':'⬜';li.appendChild(st);
+    li.onclick=()=>falar(o.fig.p);
+    ul.appendChild(li);setTimeout(()=>retrato(o.chave,c),15+n*20);n++;
+  });
+}
+$('#btLista').onclick=()=>{montarLista();E.listaSuja=false;$('#telaLista').classList.add('on');};
+$('#fecharLista').onclick=$('#fecharLista2').onclick=()=>$('#telaLista').classList.remove('on');
+
+/* ---------- 14. FESTA ---------- */
+const TROFEU=[ // taça dourada de blocos, aparece no mundo conquistado
+  [0,.2,0,1.9,.4,1.9,'#8A5A32'],[0,.55,0,1.4,.35,1.4,'#A9713F'],
+  [0,1,0,.5,.7,.5,'#FFD54A'],[0,1.75,0,1.5,.9,1.5,'#FFD54A'],[0,2.3,0,1.7,.3,1.7,'#FFC933'],
+  [1.05,1.85,0,.6,.55,.25,'#FFC933'],[-1.05,1.85,0,.6,.55,.25,'#FFC933'],
+  [0,2.65,0,.55,.5,.2,'#FFF0A8'],[0,1.75,.78,.7,.5,.05,'#FFF0A8']
+];
+function plantarTrofeu(){
+  const m=new THREE.Mesh(malha(TROFEU),MAT);
+  m.position.set(jog.x-Math.sin(jog.rot)*5,0,jog.z-Math.cos(jog.rot)*5);
+  grupoMundo.add(m);
+  E.trofeuMesh=m;
+}
+function confete(n){
+  const box=$('#festa'),em=['🎉','⭐','🌈','✨','🎈','🏆','💜','🥇'];
+  for(let i=0;i<n;i++){
+    const s=document.createElement('span');s.className='conf';s.textContent=em[i%em.length];
+    s.style.left=Math.random()*100+'%';s.style.animationDuration=(2.2+Math.random()*2)+'s';
+    s.style.animationDelay=(Math.random()*1.1)+'s';box.appendChild(s);
+    setTimeout(()=>s.remove(),5200);
+  }
+}
+function festa(){
+  E.festejou=true;
+  confete(FRACO?26:52);
+  ok3();setTimeout(()=>bip(1046,.3),420);setTimeout(()=>bip(1318,.35),700);
+
+  // troféu do mundo + pontos de conclusão
+  const chave=E.mundo+'-'+E.jogo;
+  const inedito=!E.trofeus[chave];
+  E.trofeus[chave]=true;
+  const bonus=50+E.objs.length*10;
+  E.pontos+=bonus;salvarConquistas();marcarPlacar();
+  plantarTrofeu();
+
+  // o mundo comemora: céu e chão ganham um brilho dourado por alguns segundos
+  const corAntiga=cena.background.clone();
+  cena.background=new THREE.Color('#FFD98A');
+  if(cena.fog)cena.fog.color=new THREE.Color('#FFD98A');
+  setTimeout(()=>{
+    cena.background=corAntiga;
+    if(cena.fog)cena.fog.color=corAntiga;
+  },2200);
+
+  const n=E.objs.length;
+  const estrelas=n>=10?'⭐⭐⭐':(n>=6?'⭐⭐':'⭐');
+  $('#estrelasVitoria').textContent=estrelas;
+  $('#tituloVitoria').textContent=MUNDOS[E.mundo].nome+' completo! '+MUNDOS[E.mundo].icone;
+  $('#pontosGanhos').textContent='+'+bonus+' pontos · total '+E.pontos;
+  $('#textoVitoria').textContent = E.jogo==='leitura'
+    ? 'Você leu todas as '+n+' palavras deste mundo!'
+    : 'Você escreveu todas as '+n+' palavras deste mundo!';
+  const conquistados=Object.keys(E.trofeus);
+  $('#totalTrofeus').textContent=new Set(conquistados.map(c=>c.split('-')[0])).size;
+  $('#listaTrofeus').textContent=[...new Set(conquistados.map(c=>c.split('-')[0]))].map(k=>MUNDOS[k]?MUNDOS[k].icone:'').join(' ')||'—';
+  setTimeout(()=>$('#telaVitoria').classList.add('on'),900);
+  aviso(inedito?'🏆 Troféu conquistado! Uma taça apareceu no seu mundo':'🏆 Mundo completo de novo!');
+}
+$('#btContinuarVitoria').onclick=()=>{$('#telaVitoria').classList.remove('on');pop();};
+$('#btNovoMundoVitoria').onclick=()=>{$('#telaVitoria').classList.remove('on');montarMenu();$('#telaMenu').classList.add('on');};
+$('#btFotoVitoria').onclick=()=>{$('#telaVitoria').classList.remove('on');tirarFoto('frente');};
+
+/* ---------- 15. FOTO ---------- */
+function anguloParaCamera(o,cx,cz){ // vira o modelo (que "olha" para +X) na direção da câmera
+  return Math.atan2(-(cz-o.raiz.position.z),(cx-o.raiz.position.x));
+}
+function tirarFoto(modo){
+  if(!E.objs.length&&modo!=='vista'){aviso('Coloque figurinhas antes de tirar a foto 😉');nao();return;}
+  const L=FRACO?1100:1600,A=FRACO?690:1000,fovV=50;
+  const fogAnt=cena.fog,tam=new THREE.Vector2();rend.getSize(tam);
+  const salvo=E.objs.map(o=>({o,x:o.raiz.position.x,y:o.raiz.position.y,z:o.raiz.position.z,ry:o.raiz.rotation.y}));
+  const deco=grupoMundo.userData.deco;
+  const decoVis=deco?deco.visible:null;
+  let camF=cam;
+
+  if(modo!=='vista'){
+    cena.fog=null;                              // nada some ao longe
+    camF=new THREE.PerspectiveCamera(fovV,L/A,.1,600);
+    const tv=Math.tan(fovV*Math.PI/360);
+
+    if(modo==='frente'){
+      // organiza tudo em fileiras viradas para a câmera: maiores atrás
+      const lista=[...E.objs].sort((a,b)=>(b.altura*b.escala+(b.placa?1:0))-(a.altura*a.escala+(a.placa?1:0)));
+      const n=lista.length;
+      const cols=Math.max(1,Math.min(n,Math.ceil(Math.sqrt(n*1.8))));
+      const rows=Math.ceil(n/cols);
+      const passo=Math.max(...E.objs.map(o=>o.fig.r*o.escala*2))+3.2;
+      const passoZ=passo*.92;
+      if(deco)deco.visible=false;               // tira paredes e árvores da frente
+      let i=0,altMax=0;
+      for(let r=0;r<rows;r++){
+        const nesta=Math.min(cols,n-r*cols);
+        for(let c=0;c<nesta;c++){
+          const o=lista[i++];
+          o.raiz.position.set((c-(nesta-1)/2)*passo, o.base*o.escala, (r-(rows-1)/2)*passoZ);
+          o.raiz.rotation.y=-Math.PI/2+.16;     // de frente, com um leve três-quartos
+          o.caindo=false;
+          const topo=o.raiz.position.y+o.altura*o.escala;
+          if(o.placa){
+            o.placa.position.set(o.raiz.position.x,topo+1.1,o.raiz.position.z);
+            altMax=Math.max(altMax,topo+1.1+o.placa.scale.y*.6);
+          } else altMax=Math.max(altMax,topo);
+        }
+      }
+      const meiaL=(cols*passo)/2, prof=(rows-1)*passoZ;
+      const distL=meiaL/(tv*(L/A));
+      const distA=(altMax*.62+1)/tv;
+      const dist=Math.max(distL,distA)+prof/2+3;
+      camF.position.set(0, altMax*.5+1.6, prof/2+dist);
+      camF.lookAt(0, altMax*.42, 0);
+    }else{
+      // panorâmica do mundo, com tudo virado para a câmera
+      const cx=new THREE.Box3();
+      E.objs.forEach(o=>{
+        const r=o.fig.r*o.escala;
+        cx.expandByPoint(new THREE.Vector3(o.raiz.position.x-r,0,o.raiz.position.z-r));
+        cx.expandByPoint(new THREE.Vector3(o.raiz.position.x+r,o.raiz.position.y+o.altura*o.escala+2.4,o.raiz.position.z+r));
+        if(o.placa)cx.expandByPoint(o.placa.position.clone().add(new THREE.Vector3(0,o.placa.scale.y,0)));
+      });
+      const c=cx.getCenter(new THREE.Vector3()),s=cx.getSize(new THREE.Vector3());
+      const raio=Math.max(s.x,s.z,6)*.5+3;
+      const dist=Math.max(raio/(tv*(L/A)),(Math.max(s.y,5)*.6)/tv)+raio*.5+4;
+      const px=c.x-Math.sin(jog.rot)*dist, pz=c.z-Math.cos(jog.rot)*dist;
+      camF.position.set(px, c.y+Math.max(s.y,4)*.35+dist*.26, pz);
+      camF.lookAt(c.x,c.y+s.y*.2,c.z);
+      E.objs.forEach(o=>{
+        o.raiz.rotation.y=anguloParaCamera(o,px,pz);
+        if(o.placa)o.placa.position.set(o.raiz.position.x,o.raiz.position.y+o.altura*o.escala+1.1,o.raiz.position.z);
+      });
+    }
+  }
+
+  rend.setSize(L,A,false);
+  camF.aspect=L/A;camF.updateProjectionMatrix();
+  rend.render(cena,camF);
+  // carimba a assinatura do canal na foto
+  const foto=document.createElement('canvas');
+  foto.width=L;foto.height=A;
+  const fx=foto.getContext('2d');
+  fx.drawImage(rend.domElement,0,0,L,A);
+  fx.font='700 30px "Baloo 2","Comic Sans MS",sans-serif';
+  fx.fillStyle='rgba(255,255,255,.92)';
+  fx.shadowColor='rgba(0,0,0,.55)';fx.shadowBlur=8;
+  fx.textAlign='left';fx.textBaseline='top';
+  fx.fillText('@cataventoep',26,22);
+  const url=foto.toDataURL('image/png');
+
+  // devolve tudo exatamente como estava
+  cena.fog=fogAnt;
+  if(deco)deco.visible=decoVis;
+  salvo.forEach(s=>{s.o.raiz.position.set(s.x,s.y,s.z);s.o.raiz.rotation.y=s.ry;});
+  rend.setSize(tam.x,tam.y,false);
+  cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();
+  rend.setSize(innerWidth,innerHeight);
+
+  $('#fotoImg').src=url;
+  $('#telaFoto').classList.add('on');
+  bip(880,.1);setTimeout(()=>bip(1200,.12),90);
+}
+$('#btFoto').onclick=()=>tirarFoto('frente');
+$('#fotoFrente').onclick=()=>tirarFoto('frente');
+$('#fotoTudo').onclick=()=>tirarFoto('mundo');
+$('#fotoVista').onclick=()=>tirarFoto('vista');
+$('#fecharFoto').onclick=()=>$('#telaFoto').classList.remove('on');
+$('#btBaixarFoto').onclick=()=>{
+  const a=document.createElement('a');a.href=$('#fotoImg').src;
+  a.download='mundo-das-palavras-'+E.mundo+'.png';a.click();ok3();
+};
+$('#btCompartilhar').onclick=async()=>{
+  try{
+    const b=await (await fetch($('#fotoImg').src)).blob();
+    const f=new File([b],'mundo-das-palavras.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:'Meu Mundo das Palavras'});
+    else $('#btBaixarFoto').click();
+  }catch(e){}
+};
+
+/* ---------- 16. TELA CHEIA ---------- */
+function cheia(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
+$('#btCheia').onclick=()=>{
+  const r=document.documentElement;
+  if(!cheia()){
+    const p=r.requestFullscreen?r.requestFullscreen():(r.webkitRequestFullscreen&&r.webkitRequestFullscreen());
+    if(p&&p.catch)p.catch(()=>aviso('Use a tecla F11 para tela cheia 😉'));
+    if(screen.orientation&&screen.orientation.lock)screen.orientation.lock('landscape').catch(()=>{});
+  }else (document.exitFullscreen||document.webkitExitFullscreen).call(document);
+  pop();
+};
+document.addEventListener('fullscreenchange',()=>$('#btCheia').textContent=cheia()?'🗗':'⛶');
+
+/* ---------- 17. MENU ---------- */
+function montarMenu(){
+  montarGaleria();
+  const g=$('#gradeMundos');g.innerHTML='';
+  Object.keys(MUNDOS).forEach(k=>{
+    const M=MUNDOS[k],b=document.createElement('button');
+    const venceu=E.trofeus[k+'-escrita']||E.trofeus[k+'-leitura'];
+    b.className='mundo'+(k===E.mundo?' on':'')+(venceu?' venceu':'');
+    const c=document.createElement('canvas');c.width=300;c.height=180;b.appendChild(c);
+    if(venceu){const fi=document.createElement('span');fi.className='fita';fi.textContent='🏆';b.appendChild(fi);}
+    const sp=document.createElement('span');sp.textContent=(venceu?'✅ ':'')+M.icone+' '+M.nome;b.appendChild(sp);
+    b.onclick=()=>{E.mundo=k;E.ceu=0;E.chao=0;pop();montarMenu();};
+    g.appendChild(b);
+    setTimeout(()=>previa(k,c),10);
+  });
+  const M=MUNDOS[E.mundo];
+  const tc=$('#tonsCeu');tc.innerHTML='';
+  M.ceus.forEach((c,i)=>{
+    const b=document.createElement('button');b.className='tom'+(i===E.ceu?' on':'');
+    b.style.background=c.c;b.textContent=c.n;b.onclick=()=>{E.ceu=i;pop();montarMenu();};tc.appendChild(b);
+  });
+  const th=$('#tonsChao');th.innerHTML='';
+  M.chaos.forEach((c,i)=>{
+    const b=document.createElement('button');b.className='tom'+(i===E.chao?' on':'');
+    b.style.background=`repeating-linear-gradient(45deg,${c.c1} 0 8px,${c.c2} 8px 16px)`;
+    b.textContent=c.n;b.onclick=()=>{E.chao=i;pop();montarMenu();};th.appendChild(b);
+  });
+}
+function previa(k,canvas){ // miniatura 3D do mundo
+  if(typeof THREE==='undefined')return;
+  const M=MUNDOS[k],c2=new THREE.Scene();
+  const ceu=new THREE.Color(M.ceus[E.mundo===k?E.ceu:0].c);
+  c2.background=ceu;c2.fog=new THREE.Fog(ceu,10,42);
+  const ch=M.chaos[E.mundo===k?E.chao:0];
+  const p=new THREE.Mesh(new THREE.PlaneGeometry(90,90),new THREE.MeshLambertMaterial({map:texChao(ch.c1,ch.c2)}));
+  p.rotation.x=-Math.PI/2;c2.add(p);
+  const cx=[];
+  for(let i=0;i<9;i++){const a=Math.random()*6.3,d=6+Math.random()*14;
+    cx.push([Math.cos(a)*d,1.2,Math.sin(a)*d,1.6,2.4,1.6,M.tipo==='campo'?'#3E8E3E':(M.tipo==='agua'?'#2E7A6E':'#9A9AA8')]);}
+  const deco=new THREE.Mesh(malha(cx),MAT);c2.add(deco);
+  const m=new THREE.Mesh(malha(FIG[M.itens[0]].b),MAT);m.position.set(0,0,2);m.rotation.y=-.6;c2.add(m);
+  c2.add(new THREE.HemisphereLight(ceu.getHex(),0x666666,1));
+  const dl=new THREE.DirectionalLight(0xffffff,.6);dl.position.set(5,10,6);c2.add(dl);
+  const cm=new THREE.PerspectiveCamera(55,canvas.width/canvas.height,.1,120);
+  cm.position.set(0,2.6,8);cm.lookAt(0,1.4,0);
+  const r=mini(canvas.width,canvas.height);
+  r.render(c2,cm);
+  const g=canvas.getContext('2d');
+  g.clearRect(0,0,canvas.width,canvas.height);
+  g.drawImage(r.domElement,0,0,canvas.width,canvas.height);
+  p.material.map.dispose();p.geometry.dispose();deco.geometry.dispose();m.geometry.dispose();
+}
+function entrarNoMundo(jogo){
+  E.jogo=jogo;E.modo='montar';E.carregando=null;E._estadoBt=null;
+  $('#telaMenu').classList.remove('on');
+  $('#hud').hidden=false;$('#mira').hidden=false;$('#legenda').hidden=false;
+  $('#tira').hidden=false;
+  $('#btPronto').hidden = jogo==='leitura';
+  $('#btCaixaMundo').hidden = jogo!=='leitura';
+  $('#btPalavraFrase').hidden = jogo!=='leitura';
+  $('#btPronto').className='btn verde';$('#btPronto').innerHTML='✅ Pronto, montei!';
+  montarMundo();marcarPlacar();ok3();
+  aviso(jogo==='leitura'
+    ? 'Modo leitura 📖 — solte as figurinhas e leia a palavra que aparece em cima de cada uma'
+    : 'Modo escrita ✏️ — solte as figurinhas e depois toque em "Pronto, montei!" para escrever');
+}
+$('#btLeitura').onclick=()=>entrarNoMundo('leitura');
+$('#btEscrita').onclick=()=>entrarNoMundo('escrita');
+$('#btMenu').onclick=()=>{montarMenu();$('#telaMenu').classList.add('on');};
+$('#btAjudaMenu').onclick=$('#btAjudaHud').onclick=()=>$('#telaAjuda').classList.add('on');
+$('#fecharAjuda').onclick=$('#btFechaAjuda2').onclick=()=>{$('#telaAjuda').classList.remove('on');pop();};
+
+/* ---------- 18. PARTIDA ---------- */
+if(typeof THREE!=='undefined'){
+  carregarConquistas();iniciar3D();montarMenu();paleta();marcarPlacar();
+  setTimeout(()=>$('#carregando').style.display='none',450);
+}
+</script>
+</body>
+</html>
